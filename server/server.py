@@ -29,6 +29,7 @@ import socket  # 用于端口检查
 import time    # 用于 SSE 推送间隔
 import threading
 import uuid    # 用于生成任务唯一标识
+from contextlib import contextmanager
 from datetime import datetime  # 用于记录任务开始/结束时间
 # 导入自动更新模块
 from utils.auto_update import check_for_updates, fetch_and_show_notices, perform_update_optimized
@@ -36,6 +37,8 @@ from utils.auto_update import check_for_updates, fetch_and_show_notices, perform
 from utils.task_manager import task_manager
 # 导入带进度解析的命令执行器
 from utils.execute import execute_with_progress
+# 从引擎输出中提取真正的失败原因 / 非致命警告
+from utils.engine_output import classify_error
 
 _VALUE_ERROR_RE = re.compile(r'(?m)^ValueError:\s*(?P<msg>.+)$')
 
@@ -61,6 +64,8 @@ else:
 root_path     = os.path.dirname(os.path.abspath(__file__))
 config_folder = os.path.join(root_path, 'config')
 output_folder = os.path.join(root_path, 'translated')
+# 每个任务启动引擎时使用的私有配置副本, 任务结束后删除
+job_config_folder = os.path.join(config_folder, '.jobs')
 config_path = { # 配置文件路径
     pdf2zh:      os.path.join(config_folder, 'config.json'),
     pdf2zh_next: os.path.join(config_folder, 'config.toml'),
@@ -77,6 +82,25 @@ default_env_tool = 'auto' # 自动沿用已有 uv/conda；新环境优先 uv
 enable_venv = True
 
 PORT = 8890     # 默认端口号
+
+# 插件据此判断 Server 是否支持某项设置, 而不是比较版本号
+SERVER_FEATURES = [
+    'term-concurrency',   # termPoolSize -> term_pool_max_workers
+    'cache-options',      # ignoreCache / customSystemPrompt
+    'error-details',      # 失败时返回引擎的真实报错 + hint
+    'job-warnings',       # 成功结果中附带 warnings
+]
+# 这些错误与字体子集化无关, pdf2zh 1.x 不需要再用 --skip-subset-fonts 重跑一遍
+_NO_RETRY_HINTS = {'auth', 'rate-limit', 'timeout', 'network', 'model'}
+
+
+class EngineError(RuntimeError):
+    """A translation engine failure with a reason worth showing to the user."""
+
+    def __init__(self, message, error_type='EngineError', hint=None):
+        super().__init__(message)
+        self.error_type = error_type
+        self.hint = hint
 
 
 class _QuietAccessHandler(WSGIRequestHandler):
@@ -150,6 +174,7 @@ class PDFTranslator:
             'version': __version__,
             'message': 'PDF2zh Server is running',
             'outputDir': os.path.abspath(output_folder),
+            'features': SERVER_FEATURES,
         }), 200
 
     ##################################################################
@@ -258,6 +283,10 @@ class PDFTranslator:
         config = Config(data)
 
         file_name = self._safe_upload_filename(data.get('fileName'))
+        # 引擎输出一律是 "<stem>...pdf"; 把 ".PDF" 统一成小写后缀,
+        # 后面所有根据后缀推导文件名 / 类型的逻辑才对得上。
+        if not file_name.endswith('.pdf'):
+            file_name = file_name[:-4] + '.pdf'
         base = os.path.abspath(output_folder)
         input_path = os.path.abspath(os.path.join(base, file_name))
         try:
@@ -288,14 +317,17 @@ class PDFTranslator:
                 existing.append(os.path.abspath(path))
         return existing
 
-    def _success_files_payload(self, paths):
+    def _success_files_payload(self, paths, warnings=None):
         existing = self._existing_output_files(paths)
-        return {
+        payload = {
             'status': 'success',
             'fileList': [os.path.basename(p) for p in existing],
             'outputDir': os.path.abspath(output_folder),
             'filePaths': existing,
         }
+        if warnings:
+            payload['warnings'] = list(warnings)
+        return payload
 
     def _success_files_response(self, paths):
         return jsonify(self._success_files_payload(paths)), 200
@@ -386,8 +418,7 @@ class PDFTranslator:
                 try:
                     worker()
                 except Exception as exc:
-                    task_manager.complete_task(task_id, 'failed', str(exc), error=str(exc))
-                    self._exception_payload(exc, context=context)
+                    self._fail_job(task_id, exc, context)
 
             threading.Thread(target=run, daemon=True).start()
             return jsonify({'status': 'accepted', 'taskId': task_id}), 200
@@ -404,8 +435,20 @@ class PDFTranslator:
                 }), 500
             return jsonify(payload), 200
         except Exception as exc:
-            task_manager.complete_task(task_id, 'failed', str(exc), error=str(exc))
-            return self._handle_exception(exc, context=context)
+            return jsonify(self._fail_job(task_id, exc, context)), 500
+
+    def _fail_job(self, task_id, exc, context):
+        # 任务记录里保存的是整理后的原因 (而不是 "Command [...] returned non-zero")，
+        # 轮询任务状态的插件才能把它展示给用户。
+        payload = self._exception_payload(exc, context=context)
+        task_manager.complete_task(
+            task_id,
+            'failed',
+            payload['message'],
+            error=payload['message'],
+            result=payload,
+        )
+        return payload
 
     def _complete_job_files(self, task_id, paths, message):
         payload = self._success_files_payload(paths)
@@ -524,8 +567,13 @@ class PDFTranslator:
 
         if engine == pdf2zh:
             print("🔍 [Zotero PDF2zh Server] PDF2zh 开始翻译文件...")
-            fileList = self.translate_pdf(input_path, config, task_id)
-            mono_path, dual_path = fileList[0], fileList[1]
+            mono_path, dual_path = self.translate_pdf(input_path, config, task_id)
+            # pdf2zh 1.x 总是同时生成 mono 和 dual, 只返回用户勾选的那些
+            fileList = []
+            if config.mono:
+                addFileList(fileList, mono_path)
+            if config.dual:
+                addFileList(fileList, dual_path)
             if config.mono_cut:
                 mono_cut_path = self.get_filename_after_process(mono_path, 'mono-cut', engine)
                 self.cropper.crop_pdf(config, mono_path, 'mono', mono_cut_path, 'mono-cut')
@@ -545,10 +593,17 @@ class PDFTranslator:
 
         elif engine == pdf2zh_next:
             print("🔍 [Zotero PDF2zh Server] PDF2zh_next 开始翻译文件...")
-            if config.mono_cut or config.mono:
+            needs_mono = config.mono_cut or config.mono
+            needs_dual = config.dual or config.dual_cut or config.crop_compare or config.compare
+            if needs_mono:
                 config.no_mono = False
-            if config.dual or config.dual_cut or config.crop_compare or config.compare:
+            if needs_dual:
                 config.no_dual = False
+            # 不需要的那一种就不让引擎生成, 省掉一次完整的 PDF 渲染
+            if needs_dual and not needs_mono:
+                config.no_mono = True
+            if needs_mono and not needs_dual:
+                config.no_dual = True
 
             if config.no_dual and config.no_mono:
                 raise ValueError("⚠️ [Zotero PDF2zh Server] pdf2zh_next 引擎至少需要生成 mono 或 dual 文件, 请检查 no_dual 和 no_mono 配置项")
@@ -560,9 +615,10 @@ class PDFTranslator:
                 dual_path = retList[0]
             elif config.no_dual:
                 mono_path = retList[0]
-                fileList.append(mono_path)
             else:
                 mono_path, dual_path = retList[0], retList[1]
+            # mono 可能只是 mono-cut 的中间产物, 只有勾选了 mono 才返回
+            if config.mono and not config.no_mono:
                 fileList.append(mono_path)
 
             # Canonicalize every pdf2zh_next dual output so later operations
@@ -633,7 +689,7 @@ class PDFTranslator:
             task_manager.complete_task(task_id, 'failed', '操作失败，请查看详细日志。', error='无文件生成')
             return {'status': 'error', 'message': '操作失败，请查看详细日志。'}
 
-        payload = self._success_files_payload(existing)
+        payload = self._success_files_payload(existing, config.warnings)
         task_manager.complete_task(
             task_id,
             'success',
@@ -663,24 +719,47 @@ class PDFTranslator:
         error_type = info.get('errorType')
         if error_type:
             payload['errorType'] = error_type
+        if info.get('hint'):
+            payload['hint'] = info['hint']
         if isinstance(exc, subprocess.CalledProcessError):
             payload['exitCode'] = exc.returncode
         return payload
 
     def _derive_error_info(self, exc):
-        parts = []
-        if isinstance(exc, subprocess.CalledProcessError) and getattr(exc, 'stderr', None):
-            parts.append(exc.stderr)
+        if isinstance(exc, EngineError):
+            return {
+                'errorType': exc.error_type,
+                'message': str(exc),
+                'hint': exc.hint,
+            }
+
+        if isinstance(exc, subprocess.CalledProcessError):
+            # 引擎进程自己的输出比 "Command [...] returned non-zero" 有用得多
+            ve_msg = self._extract_value_error(getattr(exc, 'stderr', None))
+            if ve_msg:
+                return {
+                    'errorType': 'ValueError',
+                    'message': ve_msg,
+                    'hint': classify_error(ve_msg),
+                }
+            engine_output = getattr(exc, 'engine_output', None)
+            info = engine_output.describe_failure() if engine_output is not None else None
+            if info:
+                return info
+            return {
+                'errorType': 'CalledProcessError',
+                'message': f'翻译引擎异常退出 (exit code {exc.returncode})，请查看 Server 终端中的详细日志。',
+            }
+
         formatted = ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-        if formatted:
-            parts.append(formatted)
-        blob = '\n'.join(part for part in parts if part)
+        blob = formatted or ''
 
         ve_msg = self._extract_value_error(blob)
         if ve_msg:
             return {
                 'errorType': 'ValueError',
                 'message': ve_msg,
+                'hint': classify_error(ve_msg),
             }
 
         def _tail_readable(text):
@@ -697,6 +776,7 @@ class PDFTranslator:
         return {
             'errorType': exc.__class__.__name__,
             'message': fallback_message,
+            'hint': classify_error(fallback_message),
         }
 
     @staticmethod
@@ -1000,22 +1080,68 @@ class PDFTranslator:
                     base = inpath[:-len(suffix)]
                     return base + (f'-{outtype}.pdf' if engine == pdf2zh else f'.{outtype}.pdf')
 
-        if engine == pdf2zh or engine != pdf2zh_next:
-            if intype == 'origin':
-                if outtype == 'origin-cut':
-                    return inpath.replace('.pdf', '-cut.pdf')
-                return inpath.replace('.pdf', f'-{outtype}.pdf')
-            return inpath.replace(f'{intype}.pdf', f'{outtype}.pdf')
-
+        # pdf2zh 1.x 用 "-" 连接类型后缀, pdf2zh_next 用 "."
+        sep = '.' if engine == pdf2zh_next else '-'
         if intype == 'origin':
-            if outtype == 'origin-cut':
-                return inpath.replace('.pdf', '.cut.pdf')
-            return inpath.replace('.pdf', f'.{outtype}.pdf')
-        return inpath.replace(f'{intype}.pdf', f'{outtype}.pdf')
+            tail = 'cut' if outtype == 'origin-cut' else outtype
+            return self._swap_suffix(inpath, '.pdf', f'{sep}{tail}.pdf')
+        return self._swap_suffix(inpath, f'{intype}.pdf', f'{outtype}.pdf')
+
+    @staticmethod
+    def _swap_suffix(path, old, new):
+        # 只替换最后一处: 文件名或上级目录里别处出现的 ".pdf" 不能被改掉
+        path = str(path)
+        index = path.rfind(old)
+        if index < 0:
+            return path + new
+        return path[:index] + new + path[index + len(old):]
+
+    @staticmethod
+    def _page_range(input_path, skip_last_pages):
+        """'1-N' leaving out the last pages, or None to translate everything."""
+        if not skip_last_pages or skip_last_pages <= 0:
+            return None
+        total = len(PdfReader(input_path).pages)
+        end = total - skip_last_pages
+        if end < 1:
+            raise ValueError(
+                f'该 PDF 共 {total} 页，而“跳过末尾页数”设置为 {skip_last_pages}，没有可翻译的页面。'
+                f' (skipLastPages={skip_last_pages} leaves no page to translate)'
+            )
+        return f'1-{end}'
+
+    @contextmanager
+    def _job_config(self, config, engine, task_id):
+        """Give one job its own copy of the engine config while it runs.
+
+        The shared config.json / config.toml is still updated (it remembers
+        each service's settings), but a second job starting meanwhile can no
+        longer change the file this job's engine is about to read.
+        """
+        os.makedirs(job_config_folder, exist_ok=True)
+        ext = '.json' if engine == pdf2zh else '.toml'
+        job_path = os.path.join(job_config_folder, f'{task_id or uuid.uuid4()}{ext}')
+        try:
+            yield config.update_config_file(config_path[engine], job_path)
+        finally:
+            try:
+                os.remove(job_path)
+            except OSError:
+                pass
+
+    @staticmethod
+    def _engine_failure(engine_output, fallback='操作失败，请查看详细日志。'):
+        info = engine_output.describe_failure() if engine_output is not None else None
+        if not info:
+            return EngineError(fallback)
+        return EngineError(info['message'], info['errorType'], info.get('hint'))
 
     def translate_pdf(self, input_path, config, task_id=None):
+        with self._job_config(config, pdf2zh, task_id) as engine_config:
+            return self._run_pdf2zh(input_path, config, task_id, engine_config)
+
+    def _run_pdf2zh(self, input_path, config, task_id, engine_config):
         # TODO: 如果翻译失败了, 自动执行跳过字体子集化, 并且显示生成的文件的大小
-        config.update_config_file(config_path[pdf2zh])
         if config.targetLang == 'zh-CN': # TOFIX, pdf2zh 1.x converter没有通过
             config.targetLang = 'zh'
         if config.sourceLang == 'zh-CN': # TOFIX, pdf2zh 1.x converter没有通过
@@ -1028,12 +1154,12 @@ class PDFTranslator:
             '--service', str(config.service),
             '--lang-in', str(config.sourceLang),
             '--lang-out', str(config.targetLang),
-            '--config', str(config_path[pdf2zh]), # 使用默认的config path路径
+            '--config', str(engine_config), # 本次任务的配置副本
         ]
 
-        if config.skip_last_pages and config.skip_last_pages > 0:
-            end = len(PdfReader(input_path).pages) - config.skip_last_pages
-            cmd.append('-p '+str(1)+'-'+str(end))
+        page_range = self._page_range(input_path, config.skip_last_pages)
+        if page_range:
+            cmd.extend(['-p', page_range])
         if config.skip_font_subsets:
             cmd.append('--skip-subset-fonts')
         if config.babeldoc:
@@ -1044,10 +1170,14 @@ class PDFTranslator:
             # 实时解析子进程输出中的进度信息并更新 task_manager
             execute_with_progress(cmd, task_id, args, self.env_manager if args.enable_venv else None)
         except subprocess.CalledProcessError as e:
-            print(f"⚠️ 翻译失败, 错误信息: {e}, 尝试跳过字体子集化, 重新渲染\n")
+            # 只有可能与字体有关的失败才值得重跑一遍; API / 网络类错误重跑也是一样的结果
+            hint = self._derive_error_info(e).get('hint')
+            if '--skip-subset-fonts' in cmd or hint in _NO_RETRY_HINTS:
+                raise
+            print(f"⚠️ 翻译失败 (exit code {e.returncode}), 尝试跳过字体子集化, 重新渲染\n")
             cmd.append('--skip-subset-fonts')
             execute_with_progress(cmd, task_id, args, self.env_manager if args.enable_venv else None)
-        fileName = os.path.basename(input_path).replace('.pdf', '')
+        fileName = os.path.splitext(os.path.basename(input_path))[0]
         if config.babeldoc:
             output_path_mono = os.path.join(output_folder, f"{fileName}.{config.targetLang}.mono.pdf")
             output_path_dual = os.path.join(output_folder, f"{fileName}.{config.targetLang}.dual.pdf")
@@ -1066,8 +1196,10 @@ class PDFTranslator:
     def translate_pdf_next(self, input_path, config, task_id=None):
         if config.service in pdf2zh_next_service_aliases:
             config.service = pdf2zh_next_service_aliases[config.service]
-        config.update_config_file(config_path[pdf2zh_next])
+        with self._job_config(config, pdf2zh_next, task_id) as engine_config:
+            return self._run_pdf2zh_next(input_path, config, task_id, engine_config)
 
+    def _run_pdf2zh_next(self, input_path, config, task_id, engine_config):
         cmd = [
             pdf2zh_next,
             input_path,
@@ -1076,16 +1208,16 @@ class PDFTranslator:
             '--output', str(output_folder),
             '--lang-in', str(config.sourceLang),
             '--lang-out', str(config.targetLang),
-            '--config-file', str(config_path[pdf2zh_next]), # 使用默认的config path路径
+            '--config-file', str(engine_config), # 本次任务的配置副本
         ]
         # TODO: 增加术语表的地址
         if config.no_watermark:
             cmd.extend(['--watermark-output-mode', 'no_watermark'])
         else:
             cmd.extend(['--watermark-output-mode', 'watermarked'])
-        if config.skip_last_pages and config.skip_last_pages > 0:
-            end = len(PdfReader(input_path).pages) - config.skip_last_pages
-            cmd.extend(['--pages', f'{1}-{end}'])
+        page_range = self._page_range(input_path, config.skip_last_pages)
+        if page_range:
+            cmd.extend(['--pages', page_range])
         if config.no_dual:
             cmd.append('--no-dual')
         if config.no_mono:
@@ -1112,10 +1244,10 @@ class PDFTranslator:
             cmd.append('--auto-enable-ocr-workaround')
         if config.font_family and config.font_family in ['serif', 'sans-serif', 'script']:
             cmd.extend(['--primary-font-family', config.font_family])
-        if config.pool_size and config.pool_size > 1:
-            cmd.extend(['--pool-max-worker', str(config.pool_size)])
+        # 并发相关设置 (pool_max_workers / term_pool_max_workers) 以及
+        # ignore_cache / custom_system_prompt 由 Config 写入本次任务的 config.toml。
 
-        fileName = os.path.basename(input_path).replace('.pdf', '')
+        fileName = os.path.splitext(os.path.basename(input_path))[0]
         no_watermark_mono = os.path.join(output_folder, f"{fileName}.no_watermark.{config.targetLang}.mono.pdf")
         no_watermark_dual = os.path.join(output_folder, f"{fileName}.no_watermark.{config.targetLang}.dual.pdf")
         watermark_mono = os.path.join(output_folder, f"{fileName}.{config.targetLang}.mono.pdf")
@@ -1133,6 +1265,7 @@ class PDFTranslator:
             if not config.no_dual:
                 output_path.append(watermark_dual)
 
+        engine_output = None
         if args.enable_winexe and os.path.exists(args.winexe_path):
             cmd = [f"{args.winexe_path}"] + cmd[1:]  # Windows可执行文件
             # 将所有是路径的字段, 改为os.path.normpath
@@ -1213,9 +1346,9 @@ class PDFTranslator:
         elif args.enable_venv:
             # 使用 execute_with_progress 替代原来的 execute_in_env
             # 实时解析子进程输出中的进度信息并更新 task_manager
-            execute_with_progress(cmd, task_id, args, self.env_manager)
+            engine_output = execute_with_progress(cmd, task_id, args, self.env_manager)
         else:
-            execute_with_progress(cmd, task_id, args, None)
+            engine_output = execute_with_progress(cmd, task_id, args, None)
         existing = [p for p in output_path if os.path.exists(p)]
 
         for f in existing:
@@ -1223,7 +1356,13 @@ class PDFTranslator:
             print(f"🐲 pdf2zh_next 翻译成功, 生成文件: {f}, 大小为: {size/1024.0/1024.0:.2f} MB")
 
         if not existing:
-            raise RuntimeError("操作失败，请查看详细日志。")
+            # pdf2zh_next 翻译失败时依然以 0 退出, 真正的原因只在它的日志里
+            raise self._engine_failure(engine_output)
+
+        if engine_output is not None:
+            for warning in engine_output.warnings():
+                print(f"⚠️ [Zotero PDF2zh Server] {warning['code']}: {warning.get('count', '')} {warning.get('detail', '')}")
+                config.warnings.append(warning)
 
         return existing
 
@@ -1231,16 +1370,13 @@ class PDFTranslator:
         print(f"🌐 Server将启动在: http://{host}:{port}")
         print(f"📊 翻译进度监控页面: http://localhost:{port}/")
         print(f"💡 健康检查端点: http://localhost:{port}/health")
-        self.app.run(
-            host=host,
-            port=port,
-            debug=debug,
-            threaded=True,
-            request_handler=_QuietAccessHandler,
-        )
+        self.app.run(host=host, port=port, debug=debug, threaded=True, request_handler=_QuietAccessHandler)
 
 def prepare_path():
     os.makedirs(output_folder, exist_ok=True)
+    # 上次异常退出时可能留下任务配置副本 (含 API Key), 启动时清掉
+    if os.path.isdir(job_config_folder):
+        shutil.rmtree(job_config_folder, ignore_errors=True)
     # Never overwrite an existing user config with the .example template.
     # Migration only adds missing defaults; user/custom values always win.
     prepare_config_files(config_path)
@@ -1248,6 +1384,35 @@ def prepare_path():
 # ================================================================================
 # ######################### 主程序入口 ############################
 # ================================================================================
+
+def ask_yes_no(prompt):
+    """Ask on an interactive terminal. Returns None when nobody can answer
+    (service, Docker, piped stdin) instead of blocking or crashing on EOF."""
+    if not sys.stdin or not sys.stdin.isatty():
+        return None
+    try:
+        return input(prompt).strip().lower() in ('y', 'yes')
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return None
+
+def run_bounded(label, func, timeout):
+    """Run a network check without letting a slow connection hold up startup."""
+    result = {}
+    def work():
+        try:
+            result['value'] = func()
+        except Exception as exc:
+            result['error'] = exc
+    worker = threading.Thread(target=work, daemon=True)
+    worker.start()
+    worker.join(timeout)
+    if worker.is_alive():
+        print(f"⏱️ {label}超过 {timeout} 秒没有结果，已跳过（不影响翻译）。\n")
+        return None
+    if 'error' in result:
+        print(f"⚠️ {label}失败，已跳过: {result['error']}\n")
+    return result.get('value')
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -1401,8 +1566,10 @@ if __name__ == '__main__':
         print("   1. 根据上述提示修复问题后重新启动")
         print("   2. 忽略警告继续运行（可能遇到错误）")
 
-        user_input = input("\n是否继续启动？(y/n): ").strip().lower()
-        if user_input != 'y':
+        answer = ask_yes_no("\n是否继续启动？(y/n): ")
+        if answer is None:
+            print("ℹ️ 当前不是交互式终端，忽略警告继续启动。")
+        elif not answer:
             print("👋 已取消启动，请修复问题后重试")
             sys.exit(0)
 
@@ -1410,25 +1577,20 @@ if __name__ == '__main__':
     print("💡 请保持此窗口开启，翻译期间请勿关闭\n")
 
     # 5. 拉取仓库通知（失败则跳过，不影响启动）
-    try:
-        fetch_and_show_notices(__version__, args.update_source)
-    except Exception:
-        pass
+    run_bounded('拉取项目通知', lambda: fetch_and_show_notices(__version__, args.update_source), 10)
 
     # 6. 启动时自动检查 Server 源码更新
     if args.check_update:
         print("🔍 开始检查 Server 更新...")
-        update_info = check_for_updates(__version__, args.update_source)
+        update_info = run_bounded('检查 Server 更新', lambda: check_for_updates(__version__, args.update_source), 15)
         if update_info:
             local_v, remote_v = update_info
             print(f"🎉 发现新版本！当前版本: {local_v}, 最新版本: {remote_v}")
-            try:
-                answer = input("是否要立即更新? (y/n): ").lower()
-            except (EOFError, KeyboardInterrupt):
-                answer = 'n'
-                print("\n无法获取用户输入，已自动取消更新。")
-
-            if answer in ['y', 'yes']:
+            print("   注意: 更新会用官方发布包覆盖 server 目录下的源码, 本地改动 (包括 fork 的修改) 会被替换。")
+            answer = ask_yes_no("是否要立即更新? (y/n): ")
+            if answer is None:
+                print("ℹ️ 当前不是交互式终端，已跳过更新。")
+            elif answer:
                 perform_update_optimized(root_path, __version__, expected_version=remote_v, update_source=args.update_source)
             else:
                 print("👌 已取消 Server 源码更新。")

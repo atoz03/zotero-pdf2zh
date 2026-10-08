@@ -97,6 +97,9 @@ pdf2zh_config_map = {
     }
 
 }
+# pdf2zh 1.x registers this translator as "modelscope"; keep the old
+# capitalised key working for configs written by earlier plugin versions.
+pdf2zh_config_map["modelscope"] = pdf2zh_config_map["ModelScope"]
 
 # Plugin / prefs service names -> pdf2zh_next config.toml section names.
 pdf2zh_next_service_aliases = {

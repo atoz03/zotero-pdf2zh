@@ -32,3 +32,6 @@ LOG.md
 _debug_progress.log
 
 server/dev/
+
+# per-job engine config copies (hold API keys while a job runs)
+server/config/.jobs/

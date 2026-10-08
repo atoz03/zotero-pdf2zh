@@ -7,6 +7,7 @@ import threading
 from datetime import datetime
 
 from utils.deepseek_thinking import prepare_deepseek_runtime_command
+from utils.engine_output import EngineOutput
 from utils.environment_lifecycle import managed_python_env
 from utils.task_manager import task_manager
 
@@ -151,7 +152,7 @@ def _decode_pty_utf8(data, leftover):
         return complete, buf[exc.start :]
 
 
-def _write_pty_chunk(data, leftover, task_id):
+def _write_pty_chunk(data, leftover, task_id, output=None):
     try:
         sys.stdout.buffer.write(data)
         sys.stdout.buffer.flush()
@@ -159,15 +160,32 @@ def _write_pty_chunk(data, leftover, task_id):
         text, leftover = _decode_pty_utf8(data, leftover)
         sys.stdout.write(text)
         sys.stdout.flush()
+        _record_output(output, text)
         _parse_progress(text, task_id)
         return leftover
     text, leftover = _decode_pty_utf8(data, leftover)
+    _record_output(output, text)
     _parse_progress(text, task_id)
     return leftover
 
 
+def _record_output(output, text):
+    if output is None:
+        return
+    try:
+        output.feed(text)
+    except Exception:
+        # Diagnostics must never break a running translation.
+        pass
+
+
 def execute_with_progress(cmd, task_id, args, env_manager):
-    """Execute translation command and update task progress in real time."""
+    """Execute translation command and update task progress in real time.
+
+    Returns the EngineOutput captured from the child's terminal (None on
+    Windows, where the child writes straight to the console). On a non-zero
+    exit the same text is attached to the CalledProcessError.
+    """
     final_cmd = cmd
     final_env = os.environ.copy()
     final_env["PYTHONUNBUFFERED"] = "1"
@@ -197,9 +215,9 @@ def execute_with_progress(cmd, task_id, args, env_manager):
     print(f"[execute_with_progress] {' '.join(final_cmd)}\n")
 
     if sys.platform != "win32":
-        _execute_with_pty(final_cmd, final_env, task_id, child_cols, child_rows)
-    else:
-        _execute_with_inherit(final_cmd, final_env, task_id, cols)
+        return _execute_with_pty(final_cmd, final_env, task_id, child_cols, child_rows)
+    _execute_with_inherit(final_cmd, final_env, task_id, cols)
+    return None
 
 def _parse_progress(text, task_id):
     """Parse progress info from text and update task_manager."""
@@ -333,6 +351,7 @@ def _execute_with_pty(final_cmd, final_env, task_id, cols, rows):
     )
     os.close(slave_fd)
     leftover = b""
+    output = EngineOutput()
 
     try:
         while True:
@@ -342,7 +361,7 @@ def _execute_with_pty(final_cmd, final_env, task_id, cols, rows):
                     data = os.read(master_fd, 4096)
                     if not data:
                         break
-                    leftover = _write_pty_chunk(data, leftover, task_id)
+                    leftover = _write_pty_chunk(data, leftover, task_id, output)
                 except OSError:
                     break
 
@@ -356,15 +375,22 @@ def _execute_with_pty(final_cmd, final_env, task_id, cols, rows):
                         data = os.read(master_fd, 4096)
                         if not data:
                             break
-                        leftover = _write_pty_chunk(data, leftover, task_id)
+                        leftover = _write_pty_chunk(data, leftover, task_id, output)
                 except Exception:
                     pass
                 break
 
         os.close(master_fd)
         return_code = process.wait()
+        output.finish()
         if return_code != 0:
-            raise subprocess.CalledProcessError(return_code, final_cmd)
+            captured = output.text()
+            error = subprocess.CalledProcessError(
+                return_code, final_cmd, output=captured, stderr=captured
+            )
+            error.engine_output = output
+            raise error
+        return output
 
     except Exception:
         if process.poll() is None:

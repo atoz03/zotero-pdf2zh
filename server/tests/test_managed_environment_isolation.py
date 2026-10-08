@@ -72,14 +72,16 @@ class ManagedEnvironmentIsolationTest(unittest.TestCase):
         self.assertIs(calls[0][1]["force_reinstall"], True)
 
     def test_reinstall_flags_are_manager_specific(self):
-        uv = _build_install_command(
-            "uv",
-            Path("python"),
-            ["pdf2zh-next"],
-            "https://pypi.org/simple",
-            dry_run=False,
-            reinstall=True,
-        )
+        # The command is only built when uv is installed; CI runners have none.
+        with patch("utils.environment_lifecycle.shutil.which", return_value="/usr/bin/uv"):
+            uv = _build_install_command(
+                "uv",
+                Path("python"),
+                ["pdf2zh-next"],
+                "https://pypi.org/simple",
+                dry_run=False,
+                reinstall=True,
+            )
         with patch("utils.environment_lifecycle._pip_supports_dry_run", return_value=True):
             conda = _build_install_command(
                 "conda",

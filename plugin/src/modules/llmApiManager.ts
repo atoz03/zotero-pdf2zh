@@ -1,22 +1,22 @@
-export interface LLMServiceConfig {
-    name: string;
-    models?: string[];
-    urls?: string[];
-    extraData?: any[];
-}
+// Data model of the user's API profiles (stored as JSON in the `llmApis`
+// preference). Pure functions only, so the logic is unit-testable in Node.
 
 export interface LLMApiData {
     key: string;
+    /** Optional display name chosen by the user. */
+    name?: string;
     service: string;
     apiKey: string;
     apiUrl: string;
     model: string;
+    /** The profile sent to the server when its service is selected. */
     activate: boolean;
     extraData?: Record<string, any>;
 }
 
 export const emptyLLMApi: LLMApiData = {
     key: "",
+    name: "",
     service: "",
     apiKey: "",
     apiUrl: "",
@@ -25,133 +25,184 @@ export const emptyLLMApi: LLMApiData = {
     extraData: {},
 };
 
-class LLMApiManager {
-    private data: Map<string, LLMApiData>;
-    constructor() {
-        this.data = new Map<string, LLMApiData>();
+const DEEPSEEK_V4_MODEL = /^deepseek-v4-(pro|flash)$/;
+
+export function migrateLegacyDeepSeekConfig(llmApi: LLMApiData): boolean {
+    if (llmApi.service !== "deepseek") return false;
+    if (
+        llmApi.model !== "deepseek-chat" &&
+        llmApi.model !== "deepseek-reasoner"
+    ) {
+        return false;
     }
-    public updateLLMApi(llmApi: LLMApiData): string {
-        let key = llmApi.key;
-        if (!key) {
-            key = Zotero.Utilities.generateObjectKey();
-            llmApi.key = key;
+
+    const legacyModel = llmApi.model;
+    llmApi.model = "deepseek-v4-flash";
+    llmApi.extraData = llmApi.extraData || {};
+
+    // Preserve an explicitly saved thinking choice. Otherwise map the retired
+    // aliases to their V4 Flash semantics.
+    if (!("deepseek_thinking_mode" in llmApi.extraData)) {
+        if (legacyModel === "deepseek-reasoner") {
+            llmApi.extraData.deepseek_thinking_mode = "enabled";
+            llmApi.extraData.deepseek_reasoning_effort = "high";
+        } else {
+            llmApi.extraData.deepseek_thinking_mode = "disabled";
+            delete llmApi.extraData.deepseek_reasoning_effort;
         }
-        // 如果新条目要激活，需要先停用相同service的其他条目
-        if (llmApi.activate) {
-            this.deactivateSameServiceModel(llmApi.service, key);
-        }
-        this.data.set(key, llmApi);
-        return key;
     }
-    // 停用相同service的其他条目
-    private deactivateSameServiceModel(
-        service: string,
-        excludeKey: string,
-    ): void {
-        this.data.forEach((llmApi, key) => {
-            if (
-                key !== excludeKey &&
-                llmApi.service === service &&
-                llmApi.activate
-            ) {
-                llmApi.activate = false;
-                this.data.set(key, llmApi);
-            }
-        });
+    return true;
+}
+
+/**
+ * DeepSeek V4 bills thinking tokens, so the choice is always stored
+ * explicitly: thinking defaults to off, and the effort only exists while
+ * thinking is on.
+ */
+export function normalizeDeepSeekThinking(llmApi: LLMApiData): void {
+    if (llmApi.service !== "deepseek") return;
+    const extra = (llmApi.extraData = llmApi.extraData || {});
+    if (!DEEPSEEK_V4_MODEL.test(llmApi.model)) {
+        delete extra.deepseek_thinking_mode;
+        delete extra.deepseek_reasoning_effort;
+        return;
     }
-
-    // 激活指定条目，同时停用相同service的其他条目
-    public activateLLMApi(key: string): boolean {
-        const llmApi = this.data.get(key);
-        if (!llmApi) return false;
-
-        this.deactivateSameServiceModel(llmApi.service, key);
-        llmApi.activate = true;
-        this.data.set(key, llmApi);
-        return true;
+    if (extra.deepseek_thinking_mode !== "enabled") {
+        extra.deepseek_thinking_mode = "disabled";
+        delete extra.deepseek_reasoning_effort;
+        return;
     }
-
-    // 停用指定条目
-    public deactivateLLMApi(key: string): boolean {
-        const llmApi = this.data.get(key);
-        if (!llmApi) return false;
-
-        llmApi.activate = false;
-        this.data.set(key, llmApi);
-        return true;
-    }
-
-    public getLLMApi(key: string): LLMApiData | undefined {
-        return this.data.get(key);
-    }
-
-    public getAllLLMApis(): LLMApiData[] {
-        return Array.from(this.data.values());
-    }
-
-    public deleteLLMApi(key: string): boolean {
-        return this.data.delete(key);
-    }
-
-    public getActiveLLMApiByService(service: string): LLMApiData | undefined {
-        for (const llmApi of this.data.values()) {
-            if (llmApi.service === service && llmApi.activate) {
-                return llmApi;
-            }
-        }
-        return undefined;
+    if (extra.deepseek_reasoning_effort !== "max") {
+        extra.deepseek_reasoning_effort = "high";
     }
 }
 
-// 向外暴露的方法
-export const llmApiManager = new LLMApiManager();
-// 获取所有 LLM API 配置，供其他模块使用
-export function getAllLLMApiConfigs(): LLMApiData[] {
-    return llmApiManager.getAllLLMApis();
+/**
+ * Turn whatever is stored in the preference into a clean profile list.
+ * `changed` tells the caller the stored value should be rewritten.
+ */
+export function parseLLMApis(
+    raw: unknown,
+    generateKey: () => string,
+): { profiles: LLMApiData[]; changed: boolean } {
+    let parsed: unknown = raw;
+    if (typeof raw === "string") {
+        try {
+            parsed = raw.trim() ? JSON.parse(raw) : [];
+        } catch {
+            return { profiles: [], changed: false };
+        }
+    }
+    if (!Array.isArray(parsed)) return { profiles: [], changed: false };
+
+    let changed = false;
+    const seen = new Set<string>();
+    const profiles: LLMApiData[] = [];
+    for (const entry of parsed) {
+        if (!entry || typeof entry !== "object") continue;
+        const source = entry as Record<string, unknown>;
+        const service = String(source.service ?? "").trim();
+        if (!service) continue;
+
+        let key = String(source.key ?? "");
+        if (!key || seen.has(key)) {
+            key = generateKey();
+            changed = true;
+        }
+        seen.add(key);
+
+        const extraData =
+            source.extraData && typeof source.extraData === "object"
+                ? { ...(source.extraData as Record<string, any>) }
+                : {};
+        const llmApi: LLMApiData = {
+            key,
+            name: typeof source.name === "string" ? source.name : "",
+            service,
+            apiKey: String(source.apiKey ?? ""),
+            apiUrl: String(source.apiUrl ?? ""),
+            model: String(source.model ?? ""),
+            activate: source.activate === true,
+            extraData,
+        };
+        if (migrateLegacyDeepSeekConfig(llmApi)) changed = true;
+        profiles.push(llmApi);
+    }
+
+    // Older builds could leave several active entries for one service.
+    const active = new Set<string>();
+    for (const llmApi of profiles) {
+        if (!llmApi.activate) continue;
+        if (active.has(llmApi.service)) {
+            llmApi.activate = false;
+            changed = true;
+        }
+        active.add(llmApi.service);
+    }
+    return { profiles, changed };
 }
-// 根据服务获取激活的 API 配置
+
+/** Make `key` the active profile of its service. */
+export function activateLLMApi(profiles: LLMApiData[], key: string): boolean {
+    const target = profiles.find((llmApi) => llmApi.key === key);
+    if (!target) return false;
+    for (const llmApi of profiles) {
+        if (llmApi.service === target.service) {
+            llmApi.activate = llmApi.key === key;
+        }
+    }
+    return true;
+}
+
 export function getActiveLLMApiByService(
+    profiles: LLMApiData[],
     service: string,
 ): LLMApiData | undefined {
-    return llmApiManager.getActiveLLMApiByService(service);
+    return profiles.find(
+        (llmApi) => llmApi.activate && llmApi.service === service,
+    );
 }
 
-// 辅助函数：从表单数据创建 LLM API 数据
-export function createLLMApiFromFormData(formData: any): LLMApiData {
-    return {
-        key: formData.key || "",
-        service: formData.service || formData.serviceselect || "",
-        apiKey: formData.apiKey || "",
-        apiUrl: formData.apiUrl || "",
-        model: formData.model || formData.modelselect || "",
-        activate: formData.activate !== undefined ? formData.activate : false,
-        extraData: formData.extraData || {},
-    };
+/** Insert or replace a profile, keeping one active profile per service. */
+export function upsertLLMApi(profiles: LLMApiData[], llmApi: LLMApiData): void {
+    const index = profiles.findIndex((item) => item.key === llmApi.key);
+    if (index === -1) {
+        profiles.push(llmApi);
+    } else {
+        profiles[index] = llmApi;
+    }
+    if (llmApi.activate) activateLLMApi(profiles, llmApi.key);
 }
 
-// 格式化 extraData 为显示字符串
-export function formatExtraDataForDisplay(
-    extraData?: Record<string, any>,
+/** Name shown wherever a profile is listed or selected. */
+export function llmApiDisplayName(
+    llmApi: LLMApiData,
+    serviceName: string,
 ): string {
-    if (
-        !extraData ||
-        typeof extraData !== "object" ||
-        Object.keys(extraData).length === 0
-    ) {
-        return "";
+    const name = (llmApi.name || "").trim();
+    if (name) return name;
+    return llmApi.model ? `${serviceName} · ${llmApi.model}` : serviceName;
+}
+
+/** Never show a full secret in the UI. */
+export function maskApiKey(apiKey: string): string {
+    const value = (apiKey || "").trim();
+    if (!value) return "";
+    if (value.length <= 8) return "•".repeat(value.length);
+    return `${value.slice(0, 3)}••••${value.slice(-4)}`;
+}
+
+/** Drop empty entries so they never override the engine's defaults. */
+export function cleanExtraData(
+    extraData: Record<string, any> | undefined,
+): Record<string, any> {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(extraData || {})) {
+        const name = key.trim();
+        if (!name) continue;
+        if (value === undefined || value === null) continue;
+        if (typeof value === "string" && !value.trim()) continue;
+        result[name] = typeof value === "string" ? value.trim() : value;
     }
-    const pairs: string[] = [];
-    for (const [key, value] of Object.entries(extraData)) {
-        if (key && key.trim()) {
-            // 截断长值以保持表格整洁
-            const displayValue =
-                String(value || "").length > 10
-                    ? String(value || "").substring(0, 10) + "..."
-                    : String(value || "");
-            pairs.push(`${key}=${displayValue}`);
-        }
-    }
-    // 限制总长度，避免表格列过宽
-    const result = pairs.join(", ");
-    return result.length > 50 ? result.substring(0, 47) + "..." : result;
+    return result;
 }

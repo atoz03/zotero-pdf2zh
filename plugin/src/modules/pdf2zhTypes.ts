@@ -15,6 +15,7 @@ export interface ServerConfig {
     threadNum: string;
     qps: string;
     poolSize: string;
+    termPoolSize: string;
     engine: string;
     service: string;
     next_service: string;
@@ -51,6 +52,8 @@ export interface ServerConfig {
     enhanceCompatibility: string;
     translateTableText: string;
     onlyIncludeTranslatedPage: string;
+    ignoreCache: string;
+    customSystemPrompt: string;
 }
 
 export interface PDFOperationOptions {
@@ -75,4 +78,8 @@ export interface JobProgressUpdate {
     percent?: number;
     detail?: string;
     error?: string;
+    // Localised advice for a failure the server could classify.
+    hint?: string;
+    // Non-fatal problem reported with a successful result.
+    warning?: string;
 }

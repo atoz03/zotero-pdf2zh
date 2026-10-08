@@ -28,7 +28,7 @@ jobs:
             - name: Compile Server sources
               run: python -m compileall -q server
 
-            - name: Test config compatibility
+            - name: Test Server units
               env:
                   PYTHONPATH: server
               run: python -m unittest discover -s server/tests -p 'test_*.py'
@@ -344,7 +344,7 @@ jobs:
             - name: Install deps
               run: cd plugin/ && npm ci
 
-            - name: Test attachment protocol helpers
+            - name: Test plugin logic
               run: cd plugin/ && npm test
 
             - name: Check plugin release invariants
@@ -352,9 +352,9 @@ jobs:
                   python - <<'PY'
                   from pathlib import Path
 
-                  editor = Path('plugin/addon/content/llmApiEditor.xhtml').read_text(encoding='utf-8')
-                  enhancements = Path('plugin/addon/content/llmApiEditorEnhancements.js').read_text(encoding='utf-8')
-                  preference_script = Path('plugin/src/modules/preferenceScript.ts').read_text(encoding='utf-8')
+                  catalog = Path('plugin/src/modules/serviceCatalog.ts').read_text(encoding='utf-8')
+                  profiles = Path('plugin/src/modules/llmApiManager.ts').read_text(encoding='utf-8')
+                  profile_editor = Path('plugin/src/modules/prefs/profileEditor.ts').read_text(encoding='utf-8')
                   helper = Path('plugin/src/modules/pdf2zhHelper.ts').read_text(encoding='utf-8')
                   attachment_utils = Path('plugin/src/modules/pdf2zhAttachmentUtils.ts').read_text(encoding='utf-8')
                   processor = Path('plugin/src/modules/pdf2zhFileProcessor.ts').read_text(encoding='utf-8')
@@ -364,19 +364,20 @@ jobs:
                   zh_addon_path = Path('plugin/addon/locale/zh-CN/addon.ftl')
                   en_addon_path = Path('plugin/addon/locale/en-US/addon.ftl')
 
-                  deepseek_block = editor.split('deepseek: {', 1)[1].split('                },', 1)[0]
+                  deepseek_block = catalog.split('id: "deepseek",', 1)[1].split('    },', 1)[0]
                   assert 'deepseek-v4-flash' in deepseek_block and 'deepseek-v4-pro' in deepseek_block
                   assert 'deepseek-chat' not in deepseek_block and 'deepseek-reasoner' not in deepseek_block
-                  assert 'sanitizeDeepSeekHistory' in editor or 'sanitizeDeepSeekHistory' in enhancements
-                  assert 'fetch-models-btn' in enhancements
-                  assert 'function migrateLegacyDeepSeekConfig' in preference_script
-                  assert 'legacyModel === "deepseek-reasoner"' in preference_script
-                  assert 'llmApi.extraData.deepseek_thinking_mode = "enabled"' in preference_script
-                  assert 'llmApi.extraData.deepseek_thinking_mode = "disabled"' in preference_script
+                  assert 'fetchModelIds(' in profile_editor
+                  assert 'function migrateLegacyDeepSeekConfig' in profiles
+                  assert 'legacyModel === "deepseek-reasoner"' in profiles
+                  assert 'llmApi.extraData.deepseek_thinking_mode = "enabled"' in profiles
+                  assert 'llmApi.extraData.deepseek_thinking_mode = "disabled"' in profiles
+                  # The profile editor is rendered inside the settings pane; the old
+                  # standalone dialog must not come back half-wired.
+                  assert not Path('plugin/addon/content/llmApiEditor.xhtml').exists()
 
                   assert 'getOperationValidationError' in helper
                   assert 'throw error;' in helper
-                  assert 'removeListener();' in helper
                   assert 'Zotero.File.getValidFileName(leaf)' in helper
                   assert 'renameAttachmentFile(' not in helper
                   assert 'private static currentAttachKeys' not in helper
@@ -460,7 +461,8 @@ jobs:
             - name: Verify XPI contents
               run: |
                   test -f plugin/build/zotero-pdf-2-zh.xpi
-                  unzip -l plugin/build/zotero-pdf-2-zh.xpi | grep -q 'content/llmApiEditorEnhancements.js'
+                  unzip -l plugin/build/zotero-pdf-2-zh.xpi | grep -q 'content/preferences.xhtml'
+                  unzip -l plugin/build/zotero-pdf-2-zh.xpi | grep -q 'content/preferences.css'
                   unzip -l plugin/build/zotero-pdf-2-zh.xpi | grep -q 'locale/en-US/pdf2zh-addon.ftl'
                   unzip -l plugin/build/zotero-pdf-2-zh.xpi | grep -q 'locale/zh-CN/pdf2zh-addon.ftl'
 

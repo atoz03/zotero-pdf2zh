@@ -12,7 +12,7 @@ import {
     PDFOperationOptions,
     JobProgressUpdate,
 } from "./pdf2zhTypes";
-import { loadLLMApisFromPrefs } from "./preferenceScript";
+import { getActiveLLMApi } from "./llmApiStore";
 
 export class PDF2zhHelperFactory {
     // 翻译请求本身不要重试，避免同一篇 PDF 被重复翻译。
@@ -42,6 +42,7 @@ export class PDF2zhHelperFactory {
             config: ServerConfig;
             endpoint: string;
         }> = [];
+        const problems: string[] = [];
         for (const item of selectedItems) {
             try {
                 const filepath = await this.validatePDFAttachment(item);
@@ -55,6 +56,12 @@ export class PDF2zhHelperFactory {
                     throw new Error(operationError);
                 }
                 const config = this.getServerConfig();
+                if (
+                    endpoint === "translate" &&
+                    !this.hasSelectedOutput(config)
+                ) {
+                    throw new Error(getString("operation-error-no-output"));
+                }
                 tasks.push({
                     fileName,
                     item,
@@ -66,14 +73,15 @@ export class PDF2zhHelperFactory {
                     error instanceof Error
                         ? error.message
                         : getString("operation-error-unknown");
-                ztoolkit.getGlobal("alert")(
-                    getString("operation-error-prefix", {
-                        args: { message },
+                problems.push(
+                    getString("operation-error-single-file", {
+                        args: { fileName: item.getDisplayTitle(), message },
                     }),
                 );
             }
         }
         if (tasks.length === 0) {
+            this.reportProblems(problems);
             return;
         }
 
@@ -84,12 +92,80 @@ export class PDF2zhHelperFactory {
         try {
             const result = await fileProcessor.processBatch(tasks, (update) => {
                 progress.updateFile(update);
+                if (update.phase === "file-failed") {
+                    const message =
+                        update.error || getString("operation-error-unknown");
+                    problems.push(
+                        getString("operation-error-single-file", {
+                            args: {
+                                fileName: update.fileName,
+                                message: update.hint
+                                    ? `${message}\n${update.hint}`
+                                    : message,
+                            },
+                        }),
+                    );
+                } else if (update.phase === "file-done" && update.warning) {
+                    problems.push(update.warning);
+                }
             });
             progress.complete(result.succeeded, result.failed);
         } catch (error) {
             progress.complete(0, tasks.length);
             throw error;
+        } finally {
+            this.reportProblems(problems);
         }
+    }
+
+    // A batch reports all of its failures and warnings in one dialog, after
+    // it finished.
+    static reportProblems(problems: string[]) {
+        if (problems.length === 0) {
+            return;
+        }
+        const shown = problems.slice(0, 5);
+        if (problems.length > shown.length) {
+            shown.push(
+                getString("operation-error-more", {
+                    args: { count: problems.length - shown.length },
+                }),
+            );
+        }
+        ztoolkit.getGlobal("alert")(shown.join("\n\n"));
+    }
+
+    // Turns the server's non-fatal warnings into one readable sentence.
+    static describeWarnings(
+        fileName: string,
+        warnings: unknown,
+    ): string | undefined {
+        if (!Array.isArray(warnings)) {
+            return undefined;
+        }
+        const lines: string[] = [];
+        for (const warning of warnings) {
+            if (!warning || typeof warning !== "object") {
+                continue;
+            }
+            const { code, count, detail } = warning as Record<string, unknown>;
+            if (code === "term-extract-failed") {
+                lines.push(
+                    getString("operation-warning-term-extract", {
+                        args: {
+                            fileName,
+                            count: Number(count) || 1,
+                            detail: detail
+                                ? getString("operation-warning-detail", {
+                                      args: { detail: String(detail) },
+                                  })
+                                : "",
+                        },
+                    }),
+                );
+            }
+        }
+        return lines.length ? lines.join("\n") : undefined;
     }
 
     static operationActionLabel(endpoint: string): string {
@@ -155,7 +231,8 @@ export class PDF2zhHelperFactory {
                     args: {
                         fileName: update.fileName,
                         message: this.shortProgressError(
-                            update.error ||
+                            update.hint ||
+                                update.error ||
                                 getString("operation-error-unknown"),
                         ),
                     },
@@ -258,7 +335,12 @@ export class PDF2zhHelperFactory {
             );
             onProgress?.({ phase: "importing", fileName, endpoint });
             await this.handleResponse(response, item, config);
-            onProgress?.({ phase: "file-done", fileName, endpoint });
+            onProgress?.({
+                phase: "file-done",
+                fileName,
+                endpoint,
+                warning: this.describeWarnings(fileName, response?.warnings),
+            });
         } catch (error) {
             ztoolkit.log(`处理单个文件失败: ${fileName}, 错误: ${error}`);
             const message =
@@ -270,15 +352,11 @@ export class PDF2zhHelperFactory {
                 fileName,
                 endpoint,
                 error: message,
+                hint: error instanceof ServerJobError ? error.hint : undefined,
             });
-            ztoolkit.getGlobal("alert")(
-                getString("operation-error-single-file", {
-                    args: { fileName, message },
-                }),
-            );
             // FileProcessor owns batch success/failure accounting. Propagate the
-            // error after showing the per-file message so a failed task is not
-            // counted as success.
+            // error so a failed task is not counted as success; processWorker
+            // reports all failures together once the batch is done.
             throw error;
         }
     }
@@ -330,16 +408,27 @@ export class PDF2zhHelperFactory {
                     extraDataKeys: Object.keys(llmApiConfig.extraData || {}),
                 });
             }
-            const response = await fetch(`${config.serverUrl}/${endpoint}`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-PDF2zh-Protocol": "accepted",
-                    "X-PDF2zh-Plugin-Version": pluginVersion,
-                },
-                body: JSON.stringify(requestBody),
-                cache: "no-store",
-            });
+            const serverUrl = this.normalizeServerUrl(config.serverUrl);
+            let response: Response;
+            try {
+                response = await fetch(`${serverUrl}/${endpoint}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-PDF2zh-Protocol": "accepted",
+                        "X-PDF2zh-Plugin-Version": pluginVersion,
+                    },
+                    body: JSON.stringify(requestBody),
+                    cache: "no-store",
+                });
+            } catch (error) {
+                ztoolkit.log("request to server failed", error);
+                throw new Error(
+                    getString("operation-error-server-unreachable", {
+                        args: { url: serverUrl },
+                    }),
+                );
+            }
             const text = await response.text();
             let result: {
                 status?: string;
@@ -364,7 +453,10 @@ export class PDF2zhHelperFactory {
                 result.status === "failed"
             ) {
                 ztoolkit.log(`response`, response, result);
-                throw new Error(result.message || "服务器返回错误");
+                throw new ServerJobError(
+                    result.message || "服务器返回错误",
+                    result.hint,
+                );
             }
             const taskId = this.taskIdFromPayload(result);
             if (
@@ -462,6 +554,7 @@ export class PDF2zhHelperFactory {
                 message: String(
                     nested?.message || task.error || task.message || "翻译失败",
                 ),
+                hint: nested?.hint,
             };
         }
         const files = this.stringList(nested?.fileList ?? task.fileList);
@@ -483,6 +576,7 @@ export class PDF2zhHelperFactory {
             fileList: files,
             filePaths: paths,
             outputDir: String(nested?.outputDir || task.outputDir || ""),
+            warnings: nested?.warnings,
         };
     }
 
@@ -560,7 +654,10 @@ export class PDF2zhHelperFactory {
             const payload = this.completedTaskPayload(task, taskId);
             if (payload) {
                 if (payload.status === "error") {
-                    throw new Error(payload.message || "翻译失败");
+                    throw new ServerJobError(
+                        payload.message || "翻译失败",
+                        payload.hint,
+                    );
                 }
                 const files = this.stringList(payload.fileList);
                 ztoolkit.log(
@@ -698,12 +795,17 @@ export class PDF2zhHelperFactory {
 
     static async validatePDFAttachment(item: Zotero.Item): Promise<string> {
         const attachItem = await this.getAttachmentItem(item); // 获取item对应的attchItem
-        if (!attachItem) return "No valid attachment found";
-        const filepath = attachItem.getFilePath().toString();
-        if (!filepath?.endsWith(".pdf"))
-            throw new Error("Please select a PDF attachment");
+        if (!attachItem) {
+            throw new Error(getString("operation-error-no-attachment"));
+        }
+        const filepath = String(attachItem.getFilePath() || "");
+        if (!filepath.toLowerCase().endsWith(".pdf")) {
+            throw new Error(getString("operation-error-not-pdf"));
+        }
         const exists = await this.safeExists(filepath);
-        if (!exists) throw new Error("PDF file not found");
+        if (!exists) {
+            throw new Error(getString("operation-error-file-missing"));
+        }
         return filepath;
     }
 
@@ -1017,76 +1119,88 @@ export class PDF2zhHelperFactory {
 
     // ************* Config *************
     static getServerConfig(): ServerConfig {
+        const text = (key: string, fallback = "") =>
+            getPref(key)?.toString() || fallback;
+        const on = (key: string) => this.isTrue(getPref(key));
+        // pdf2zh_next can skip rendering a whole file family. Derive that from
+        // the selected outputs so nothing is produced only to be thrown away.
+        const wantsMono = on("mono") || on("mono-cut");
+        const wantsDual =
+            on("dual") || on("dual-cut") || on("crop-compare") || on("compare");
         return {
-            serverUrl: getPref("new_serverip")?.toString() || "",
+            serverUrl: text("new_serverip"),
 
-            service: getPref("service")?.toString() || "",
-            next_service: getPref("next_service")?.toString() || "",
-            engine: getPref("engine")?.toString() || "",
+            service: text("service"),
+            next_service: text("next_service"),
+            engine: text("engine"),
 
-            sourceLang: getPref("sourceLang")?.toString() || "",
-            targetLang: getPref("targetLang")?.toString() || "",
+            sourceLang: text("sourceLang"),
+            targetLang: text("targetLang"),
 
-            skipLastPages: getPref("skipLastPages")?.toString() || "",
-            threadNum: getPref("threadNum")?.toString() || "",
-            qps: getPref("qps")?.toString() || "10",
-            poolSize: getPref("poolSize")?.toString() || "0",
+            skipLastPages: text("skipLastPages"),
+            threadNum: text("threadNum"),
+            qps: text("qps", "10"),
+            poolSize: text("poolSize", "0"),
+            termPoolSize: text("termPoolSize", "0"),
 
             // generate
-            mono: getPref("mono")?.toString() || "",
-            dual: getPref("dual")?.toString() || "",
-            mono_cut: getPref("mono-cut")?.toString() || "",
-            dual_cut: getPref("dual-cut")?.toString() || "",
-            crop_compare: getPref("crop-compare")?.toString() || "",
-            compare: getPref("compare")?.toString() || "",
+            mono: text("mono"),
+            dual: text("dual"),
+            mono_cut: text("mono-cut"),
+            dual_cut: text("dual-cut"),
+            crop_compare: text("crop-compare"),
+            compare: text("compare"),
 
             // pdf1x专用配置
-            babeldoc: getPref("babeldoc")?.toString() || "",
-            skipSubsetFonts: getPref("skipSubsetFonts")?.toString() || "",
-            fontFile: getPref("fontFile")?.toString() || "",
+            babeldoc: text("babeldoc"),
+            skipSubsetFonts: text("skipSubsetFonts"),
+            fontFile: text("fontFile"),
 
             // pdf2x专用配置
-            // TODO: 如果noDual和noMono同时被选择, 我们默认不选择noDual
-            fontFamily: getPref("fontFamily")?.toString() || "",
-            dualMode: getPref("dualMode")?.toString() || "",
-            transFirst: getPref("transFirst")?.toString() || "",
-            ocr: getPref("ocr")?.toString() || "",
-            autoOcr: getPref("autoOcr")?.toString() || "",
-            noWatermark: getPref("noWatermark")?.toString() || "",
-            saveGlossary: getPref("saveGlossary")?.toString() || "",
-            disableGlossary: getPref("disableGlossary")?.toString() || "",
-            noDual: getPref("noDual")?.toString() || "",
-            noMono: getPref("noMono")?.toString() || "",
-            skipClean: getPref("skipClean")?.toString() || "",
-            disableRichTextTranslate:
-                getPref("disableRichTextTranslate")?.toString() || "",
-            enhanceCompatibility:
-                getPref("enhanceCompatibility")?.toString() || "",
-            translateTableText: getPref("translateTableText")?.toString() || "",
-            onlyIncludeTranslatedPage:
-                getPref("onlyIncludeTranslatedPage")?.toString() || "",
+            fontFamily: text("fontFamily"),
+            dualMode: text("dualMode"),
+            transFirst: text("transFirst"),
+            ocr: text("ocr"),
+            autoOcr: text("autoOcr"),
+            noWatermark: text("noWatermark"),
+            saveGlossary: text("saveGlossary"),
+            disableGlossary: text("disableGlossary"),
+            noDual: String(wantsMono && !wantsDual),
+            noMono: String(wantsDual && !wantsMono),
+            skipClean: text("skipClean"),
+            disableRichTextTranslate: text("disableRichTextTranslate"),
+            enhanceCompatibility: text("enhanceCompatibility"),
+            translateTableText: text("translateTableText"),
+            onlyIncludeTranslatedPage: text("onlyIncludeTranslatedPage"),
+            ignoreCache: text("ignoreCache"),
+            customSystemPrompt: text("customSystemPrompt"),
         };
     }
 
+    static hasSelectedOutput(config: ServerConfig): boolean {
+        return [
+            config.mono,
+            config.dual,
+            config.mono_cut,
+            config.dual_cut,
+            config.crop_compare,
+            config.compare,
+        ].some((value) => this.isTrue(value));
+    }
+
     static getActiveLLMApiConfig(service: string): any {
-        // 获取当前激活的 LLM API 配置
-        loadLLMApisFromPrefs();
-        if (!addon.data.llmApis?.map) {
+        // The profile the user selected for this service, if there is one.
+        const llmApi = getActiveLLMApi(service);
+        if (!llmApi) {
             return null;
         }
-        // 查找激活的配置
-        for (const [key, llmApi] of addon.data.llmApis.map) {
-            if (llmApi.activate && llmApi.service == service) {
-                return {
-                    service: llmApi.service,
-                    model: llmApi.model,
-                    apiKey: llmApi.apiKey,
-                    apiUrl: llmApi.apiUrl,
-                    extraData: llmApi.extraData || {},
-                };
-            }
-        }
-        return null;
+        return {
+            service: llmApi.service,
+            model: llmApi.model,
+            apiKey: llmApi.apiKey,
+            apiUrl: llmApi.apiUrl,
+            extraData: llmApi.extraData || {},
+        };
     }
 
     // **************** Utils ****************
@@ -1148,6 +1262,22 @@ export class PDF2zhHelperFactory {
     static getCollections(item: Zotero.Item): number[] | undefined {
         const collections = item.getCollections();
         return collections.length > 0 ? [collections[0]] : undefined;
+    }
+}
+
+const SERVER_HINTS = ["auth", "rate-limit", "timeout", "network", "model"];
+
+// A failure reported by the server, with localised advice when the server
+// could tell what kind of failure it was.
+class ServerJobError extends Error {
+    hint?: string;
+
+    constructor(message: string, hintCode?: unknown) {
+        super(message);
+        this.name = "ServerJobError";
+        if (typeof hintCode === "string" && SERVER_HINTS.includes(hintCode)) {
+            this.hint = getString(`operation-hint-${hintCode}`);
+        }
     }
 }
 

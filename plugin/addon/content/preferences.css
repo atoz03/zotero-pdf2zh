@@ -1,0 +1,989 @@
+/*
+ * Settings pane of Zotero PDF2zh.
+ *
+ * Zotero injects this sheet into the shared preferences document, so every
+ * selector is namespaced with `p2z`. Neutral colours come from Zotero's own
+ * theme variables (which follow light/dark mode); the fallbacks only matter
+ * if a future Zotero renames them.
+ */
+
+.pdf2zh-prefs {
+    display: block;
+}
+
+.p2z {
+    --p2z-accent: var(--color-accent, #4072e5);
+    --p2z-on-accent: var(--color-accent-text, #fff);
+    --p2z-text: var(--fill-primary, rgba(0, 0, 0, 0.85));
+    --p2z-text-2: var(--fill-secondary, rgba(0, 0, 0, 0.55));
+    --p2z-text-3: var(--fill-tertiary, rgba(0, 0, 0, 0.3));
+    --p2z-line: var(--fill-quinary, rgba(0, 0, 0, 0.06));
+    --p2z-line-strong: var(--fill-quarternary, rgba(0, 0, 0, 0.12));
+    --p2z-fill: var(--fill-quinary, rgba(0, 0, 0, 0.05));
+    --p2z-surface: var(--material-background, #fff);
+    --p2z-ok: #1a7f37;
+    --p2z-warn: #9a6700;
+    --p2z-danger: #cf222e;
+    --p2z-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+    --p2z-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 780px;
+    padding: 4px 2px 28px;
+    color: var(--p2z-text);
+    line-height: 1.45;
+}
+
+@media (prefers-color-scheme: dark) {
+    .p2z {
+        --p2z-ok: #3fb950;
+        --p2z-warn: #d29922;
+        --p2z-danger: #ff7b72;
+        --p2z-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+}
+
+.p2z *,
+.p2z *::before,
+.p2z *::after {
+    box-sizing: border-box;
+}
+
+.p2z [hidden] {
+    display: none !important;
+}
+
+.p2z h1,
+.p2z h2,
+.p2z h3,
+.p2z p {
+    margin: 0;
+    font-weight: 400;
+}
+
+/* Rows that only apply to one engine */
+.p2z[data-engine="pdf2zh"] [data-for-engine="pdf2zh_next"],
+.p2z[data-engine="pdf2zh_next"] [data-for-engine="pdf2zh"],
+.p2z[data-glossary="off"] [data-needs-glossary] {
+    display: none !important;
+}
+
+/* ------------------------------- Header -------------------------------- */
+
+.p2z-hero {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2px 2px 0;
+}
+
+.p2z-hero-logo {
+    width: 36px;
+    height: 36px;
+    flex: none;
+}
+
+.p2z-hero-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.p2z-hero h1 {
+    font-size: 1.3em;
+    font-weight: 650;
+    line-height: 1.25;
+}
+
+.p2z-hero p {
+    color: var(--p2z-text-2);
+}
+
+.p2z-chip {
+    flex: none;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--p2z-fill);
+    color: var(--p2z-text-2);
+    font-size: 0.88em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* -------------------------------- Cards -------------------------------- */
+
+.p2z-card {
+    border: 1px solid var(--p2z-line-strong);
+    border-radius: 10px;
+    background: var(--p2z-surface);
+}
+
+.p2z-card-head {
+    padding: 12px 16px;
+}
+
+.p2z-card-head h2 {
+    font-size: 1.06em;
+    font-weight: 650;
+}
+
+.p2z-card-head p {
+    margin-top: 2px;
+    color: var(--p2z-text-2);
+    font-size: 0.92em;
+}
+
+.p2z-card-head-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.p2z-fold > summary {
+    position: relative;
+    padding-right: 44px;
+    list-style: none;
+    cursor: pointer;
+    border-radius: 10px;
+}
+
+.p2z-fold > summary::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    width: 7px;
+    height: 7px;
+    border-right: 1.5px solid var(--p2z-text-2);
+    border-bottom: 1.5px solid var(--p2z-text-2);
+    transform: translateY(-70%) rotate(45deg);
+    transition: transform 0.15s ease;
+}
+
+.p2z-fold[open] > summary::after {
+    transform: translateY(-30%) rotate(-135deg);
+}
+
+.p2z-subhead {
+    padding: 14px 16px 6px;
+    border-top: 1px solid var(--p2z-line);
+}
+
+.p2z-subhead h3 {
+    color: var(--p2z-text-2);
+    font-size: 0.88em;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+}
+
+.p2z-subhead p {
+    margin-top: 2px;
+    color: var(--p2z-text-2);
+    font-size: 0.9em;
+}
+
+.p2z-subhead + .p2z-row {
+    border-top: 0;
+}
+
+/* --------------------------------- Rows -------------------------------- */
+
+.p2z-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--p2z-line);
+}
+
+.p2z-row-stack {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.p2z-row-nested {
+    padding-left: 32px;
+}
+
+.p2z-row > .p2z-note {
+    grid-column: 1 / -1;
+}
+
+.p2z-row-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.p2z-row-title {
+    font-weight: 500;
+}
+
+.p2z-row-desc {
+    color: var(--p2z-text-2);
+    font-size: 0.9em;
+}
+
+.p2z-row-ctl {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+}
+
+.p2z-row-ctl-wide {
+    justify-content: stretch;
+}
+
+.p2z-row-ctl-wide > .p2z-input {
+    flex: 1;
+}
+
+/* ------------------------------- Controls ------------------------------ */
+
+.p2z-input,
+.p2z-select {
+    appearance: none;
+    height: 28px;
+    min-width: 0;
+    margin: 0;
+    padding: 0 8px;
+    border: 1px solid var(--p2z-line-strong);
+    border-radius: 6px;
+    background-color: var(--p2z-surface);
+    color: var(--p2z-text);
+    font: inherit;
+}
+
+/* The editor has its own show/hide button for secrets. */
+.p2z-input::-moz-reveal {
+    display: none;
+}
+
+.p2z-input::placeholder {
+    color: var(--p2z-text-3);
+}
+
+.p2z-input:hover,
+.p2z-select:hover {
+    border-color: var(--p2z-text-3);
+}
+
+.p2z-input:focus-visible,
+.p2z-select:focus-visible,
+.p2z-btn:focus-visible,
+.p2z-link:focus-visible,
+.p2z-switch:focus-visible,
+.p2z-check:focus-visible,
+.p2z-segmented button:focus-visible,
+.p2z-fold > summary:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--p2z-accent) 60%, transparent);
+    outline-offset: 1px;
+}
+
+.p2z-input:focus-visible,
+.p2z-select:focus-visible {
+    border-color: var(--p2z-accent);
+    outline-offset: 0;
+}
+
+.p2z-input[aria-invalid="true"] {
+    border-color: var(--p2z-danger);
+}
+
+.p2z-select {
+    max-width: 100%;
+    padding-right: 26px;
+    background-image:
+        linear-gradient(45deg, transparent 50%, currentColor 50%),
+        linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position:
+        calc(100% - 14px) 11px,
+        calc(100% - 9px) 11px;
+    background-repeat: no-repeat;
+    background-size: 5px 5px;
+    text-overflow: ellipsis;
+}
+
+.p2z-textarea {
+    width: 100%;
+    height: auto;
+    min-height: 54px;
+    padding: 6px 8px;
+    resize: vertical;
+}
+
+.p2z-w-num {
+    width: 84px;
+}
+
+.p2z-w-lg {
+    width: 250px;
+}
+
+.p2z-w-xl {
+    width: 320px;
+}
+
+.p2z-btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 28px;
+    min-width: 0;
+    margin: 0;
+    padding: 0 12px;
+    border: 1px solid var(--p2z-line-strong);
+    border-radius: 6px;
+    background: var(--p2z-surface);
+    color: var(--p2z-text);
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.p2z-btn:hover {
+    background: var(--p2z-fill);
+}
+
+.p2z-btn:active {
+    background: var(--p2z-line-strong);
+}
+
+.p2z-btn[disabled] {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+}
+
+.p2z-btn svg {
+    width: 14px;
+    height: 14px;
+    flex: none;
+}
+
+.p2z-btn-primary {
+    border-color: transparent;
+    background: var(--p2z-accent);
+    color: var(--p2z-on-accent);
+    font-weight: 500;
+}
+
+.p2z-btn-primary:hover,
+.p2z-btn-primary:active {
+    background: color-mix(in srgb, var(--p2z-accent) 86%, #000);
+}
+
+.p2z-btn-ghost {
+    border-color: transparent;
+    background: transparent;
+}
+
+.p2z-btn-icon {
+    width: 28px;
+    padding: 0;
+}
+
+.p2z-btn-danger:hover {
+    border-color: var(--p2z-danger);
+    color: var(--p2z-danger);
+}
+
+.p2z-btn-danger[data-armed] {
+    width: auto;
+    padding: 0 10px;
+    border-color: transparent;
+    background: var(--p2z-danger);
+    color: #fff;
+}
+
+.p2z-link {
+    appearance: none;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: none;
+    color: var(--p2z-accent);
+    font: inherit;
+    cursor: pointer;
+}
+
+.p2z-link:hover {
+    text-decoration: underline;
+}
+
+.p2z-segmented {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 8px;
+    background: var(--p2z-fill);
+}
+
+.p2z-segmented button {
+    appearance: none;
+    height: 24px;
+    min-width: 0;
+    margin: 0;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--p2z-text-2);
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.p2z-segmented button[aria-checked="true"] {
+    background: var(--p2z-surface);
+    box-shadow:
+        0 0 0 1px var(--p2z-line-strong),
+        0 1px 2px rgba(0, 0, 0, 0.1);
+    color: var(--p2z-text);
+    font-weight: 600;
+}
+
+/* A switch drawn with backgrounds only, so it renders the same everywhere. */
+.p2z-switch {
+    appearance: none;
+    flex: none;
+    width: 34px;
+    height: 20px;
+    margin: 0;
+    border: 0;
+    border-radius: 10px;
+    background-color: var(--p2z-text-3);
+    background-image: radial-gradient(
+        circle closest-side,
+        #fff 0 80%,
+        transparent 84%
+    );
+    background-position: 0 0;
+    background-repeat: no-repeat;
+    background-size: 20px 20px;
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        background-position 0.15s ease;
+}
+
+.p2z-switch:checked {
+    background-color: var(--p2z-accent);
+    background-position: 14px 0;
+}
+
+.p2z-check {
+    appearance: none;
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border: 1.5px solid var(--p2z-text-3);
+    border-radius: 5px;
+    background: var(--p2z-surface) center / 14px 14px no-repeat;
+    cursor: pointer;
+}
+
+.p2z-check:checked {
+    border-color: var(--p2z-accent);
+    background-color: var(--p2z-accent);
+    background-image: var(--p2z-check);
+}
+
+.p2z-switch:disabled,
+.p2z-check:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+/* --------------------------- Status and notes --------------------------- */
+
+.p2z-status {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 0 16px 12px;
+    color: var(--p2z-text-2);
+    font-size: 0.92em;
+    white-space: pre-line;
+}
+
+.p2z-status[data-state="idle"] {
+    display: none;
+}
+
+.p2z-status-dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin-top: 0.42em;
+    border-radius: 50%;
+    background: var(--p2z-text-3);
+}
+
+.p2z-status[data-state="ok"] .p2z-status-dot {
+    background: var(--p2z-ok);
+}
+
+.p2z-status[data-state="ok"] {
+    color: var(--p2z-text);
+}
+
+.p2z-status[data-state="warn"] {
+    color: var(--p2z-warn);
+}
+
+.p2z-status[data-state="warn"] .p2z-status-dot {
+    background: var(--p2z-warn);
+}
+
+.p2z-status[data-state="error"] {
+    color: var(--p2z-danger);
+}
+
+.p2z-status[data-state="error"] .p2z-status-dot {
+    background: var(--p2z-danger);
+}
+
+.p2z-status[data-state="checking"] .p2z-status-dot {
+    animation: p2z-pulse 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes p2z-pulse {
+    from {
+        opacity: 0.25;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.p2z-note {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: var(--p2z-fill);
+    color: var(--p2z-text-2);
+    font-size: 0.92em;
+}
+
+.p2z-note[data-tone="warn"] {
+    background: color-mix(in srgb, var(--p2z-warn) 12%, transparent);
+    color: var(--p2z-warn);
+}
+
+.p2z-card > .p2z-note {
+    margin: 0 16px 12px;
+}
+
+.p2z-badge {
+    flex: none;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--p2z-fill);
+    color: var(--p2z-text-2);
+    font-size: 0.82em;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.p2z-badge[data-tone="accent"] {
+    background: var(--p2z-accent);
+    color: var(--p2z-on-accent);
+}
+
+.p2z-badge[data-tone="warn"] {
+    background: color-mix(in srgb, var(--p2z-warn) 14%, transparent);
+    color: var(--p2z-warn);
+}
+
+/* ------------------------------ Languages ------------------------------ */
+
+.p2z-lang-field {
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+}
+
+.p2z-lang-field .p2z-select {
+    width: 210px;
+}
+
+.p2z-lang-field .p2z-input {
+    width: 86px;
+}
+
+/* ----------------------------- Output table ---------------------------- */
+
+.p2z-table {
+    border-top: 1px solid var(--p2z-line);
+}
+
+.p2z-table-head,
+.p2z-table-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 72px 112px;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+}
+
+.p2z-table-head {
+    padding-block: 6px;
+    background: var(--p2z-fill);
+    color: var(--p2z-text-2);
+    font-size: 0.86em;
+    font-weight: 500;
+}
+
+.p2z-table-head > :not(:first-child),
+.p2z-table-row > input {
+    justify-self: center;
+    text-align: center;
+}
+
+.p2z-table-row {
+    border-top: 1px solid var(--p2z-line);
+}
+
+.p2z-table-row > label {
+    cursor: pointer;
+}
+
+.p2z-table + .p2z-note {
+    margin-top: 10px;
+}
+
+/* ------------------------------- Profiles ------------------------------ */
+
+.p2z-profiles {
+    border-top: 1px solid var(--p2z-line);
+}
+
+.p2z-empty {
+    padding: 22px 16px;
+    color: var(--p2z-text-2);
+    text-align: center;
+}
+
+.p2z-profile {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2px 12px;
+    padding: 10px 16px;
+}
+
+.p2z-profile + .p2z-profile,
+.p2z-profile + .p2z-editor,
+.p2z-editor + .p2z-profile,
+.p2z-empty + .p2z-editor {
+    border-top: 1px solid var(--p2z-line);
+}
+
+.p2z-profiles > :last-child {
+    border-radius: 0 0 9px 9px;
+}
+
+.p2z-profile[data-in-use] {
+    background: color-mix(in srgb, var(--p2z-accent) 7%, transparent);
+    box-shadow: inset 3px 0 0 var(--p2z-accent);
+}
+
+.p2z-profile-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.p2z-profile-name {
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.p2z-profile-meta {
+    overflow: hidden;
+    color: var(--p2z-text-2);
+    font-size: 0.9em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.p2z-profile-actions {
+    display: flex;
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    gap: 6px;
+}
+
+/* ----------------------------- Profile editor --------------------------- */
+
+.p2z-editor {
+    padding: 14px 16px 16px;
+    background: color-mix(in srgb, var(--p2z-text) 3%, transparent);
+}
+
+.p2z-editor > h3 {
+    margin-bottom: 10px;
+    font-weight: 650;
+}
+
+.p2z-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+}
+
+.p2z-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.p2z-field-wide {
+    grid-column: 1 / -1;
+}
+
+.p2z-field > label {
+    color: var(--p2z-text-2);
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.p2z-field-ctl {
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+}
+
+.p2z-field-ctl > .p2z-input,
+.p2z-field-ctl > .p2z-select,
+.p2z-field-ctl > .p2z-combo {
+    flex: 1;
+}
+
+.p2z-field-hint {
+    color: var(--p2z-text-2);
+    font-size: 0.86em;
+}
+
+.p2z-field-hint[data-tone="error"] {
+    color: var(--p2z-danger);
+}
+
+.p2z-field-hint[data-tone="ok"] {
+    color: var(--p2z-ok);
+}
+
+.p2z-combo {
+    position: relative;
+    display: flex;
+    min-width: 0;
+}
+
+.p2z-combo > .p2z-input {
+    flex: 1;
+    width: 100%;
+    padding-right: 28px;
+}
+
+.p2z-combo-toggle {
+    appearance: none;
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--p2z-text-2);
+    cursor: pointer;
+}
+
+.p2z-combo-toggle:hover {
+    background: var(--p2z-fill);
+}
+
+.p2z-combo-toggle svg {
+    width: 12px;
+    height: 12px;
+}
+
+.p2z-menu {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    max-height: 216px;
+    padding: 4px;
+    overflow: auto;
+    border: 1px solid var(--p2z-line-strong);
+    border-radius: 8px;
+    background: var(--p2z-surface);
+    box-shadow: var(--p2z-shadow);
+}
+
+.p2z-menu-item {
+    appearance: none;
+    display: block;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 5px 8px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--p2z-text);
+    font: inherit;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.p2z-menu-item:hover,
+.p2z-menu-item[data-active] {
+    background: var(--p2z-accent);
+    color: var(--p2z-on-accent);
+}
+
+.p2z-extra {
+    margin-top: 12px;
+    border: 1px solid var(--p2z-line-strong);
+    border-radius: 8px;
+    background: var(--p2z-surface);
+}
+
+.p2z-extra > summary {
+    padding: 8px 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.p2z-extra-body {
+    display: grid;
+    gap: 8px;
+    padding: 2px 12px 12px;
+}
+
+.p2z-extra-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 200px) 28px;
+    align-items: center;
+    gap: 8px;
+}
+
+.p2z-extra-row > label {
+    min-width: 0;
+}
+
+.p2z-extra-row code {
+    display: block;
+    overflow: hidden;
+    color: var(--p2z-text-2);
+    font-size: 0.86em;
+    text-overflow: ellipsis;
+}
+
+.p2z-extra-row > .p2z-input,
+.p2z-extra-row > .p2z-select {
+    width: 100%;
+}
+
+.p2z-editor-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.p2z-spacer {
+    flex: 1;
+}
+
+/* -------------------------------- Footer ------------------------------- */
+
+.p2z-about {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 4px;
+    color: var(--p2z-text-2);
+    font-size: 0.92em;
+}
+
+.p2z-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+}
+
+/* ------------------------------ Narrow pane ----------------------------- */
+
+/* Rows whose controls are wide stack a little earlier than the others. */
+@container (max-width: 680px) {
+    .p2z-row-wide-ctl {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .p2z-row-wide-ctl .p2z-row-ctl {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+}
+
+@container (max-width: 560px) {
+    .p2z-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .p2z-row-ctl {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .p2z-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .p2z-profile {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .p2z-profile-actions {
+        grid-row: auto;
+        grid-column: 1;
+        margin-top: 6px;
+    }
+
+    .p2z-w-lg,
+    .p2z-w-xl {
+        width: 100%;
+    }
+}

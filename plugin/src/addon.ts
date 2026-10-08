@@ -1,13 +1,8 @@
 // base class
 import { config } from "../package.json";
-import {
-    ColumnOptions,
-    VirtualizedTableHelper,
-    DialogHelper,
-} from "zotero-plugin-toolkit";
+import { DialogHelper } from "zotero-plugin-toolkit";
 import hooks from "./hooks";
 import { createZToolkit } from "./utils/ztoolkit";
-import { LLMApiData } from "./modules/llmApiManager";
 
 class Addon {
     public data: {
@@ -21,16 +16,8 @@ class Addon {
         };
         prefs?: {
             window: Window;
-            columns: Array<ColumnOptions>;
-            rows: Array<{ [dataKey: string]: string }>;
-            tableHelper?: VirtualizedTableHelper;
         };
         dialog?: DialogHelper;
-        llmApis: {
-            map: Map<string, LLMApiData>;
-            cachedKeys: string[];
-            selectedKey?: string;
-        };
     };
     // Lifecycle hooks
     public hooks: typeof hooks;
@@ -43,10 +30,6 @@ class Addon {
             config,
             env: __env__,
             ztoolkit: createZToolkit(),
-            llmApis: {
-                map: new Map<string, LLMApiData>(),
-                cachedKeys: [],
-            },
         };
         this.hooks = hooks;
         this.api = {};

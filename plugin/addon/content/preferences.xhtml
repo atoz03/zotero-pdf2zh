@@ -2,741 +2,1043 @@
     <html:link rel="localization" href="__addonRef__-preferences.ftl" />
 </linkset>
 
-<html:style>
-    .virtualized-table-container { height: 300px; max-height: 300px; }
-    #zotero-prefpane-__addonRef__-llmapi-table-container { height: 100%; width:
-    100%; } .action-button { min-width:auto; height:24px;
-    -moz-context-properties: fill, fill-opacity; fill: currentColor; }
-    .action-button .button-text { display: none; }
-</html:style>
-
-<groupbox
+<vbox
+    id="__addonRef__-prefs"
+    class="pdf2zh-prefs"
     onload="Zotero.__addonInstance__.hooks.onPrefsEvent('load', { window });"
 >
-    <vbox>
-        <html:h3 data-l10n-id="pref-config-basic" />
-        <!-- 设置服务器的IP地址 -->
-        <hbox align="center" flex="1">
-            <html:label
-                for="zotero-prefpane-__addonRef__-new_serverip"
-                data-l10n-id="pref-serverip"
+    <html:div class="p2z" data-engine="pdf2zh_next">
+        <html:header class="p2z-hero">
+            <html:img
+                class="p2z-hero-logo"
+                src="chrome://__addonRef__/content/icons/favicon.svg"
+                alt=""
             />
-            <html:input
-                id="zotero-prefpane-__addonRef__-new_serverip"
-                preference="extensions.zotero.__addonRef__.new_serverip"
-                type="text"
-                style="width: 200px"
+            <html:div class="p2z-hero-text">
+                <html:h1>Zotero PDF2zh</html:h1>
+                <html:p data-l10n-id="pref-tagline" />
+            </html:div>
+            <html:span
+                class="p2z-chip"
+                data-l10n-id="pref-help"
+                data-l10n-args='{"time": "__buildTime__","name": "__addonName__","version":"__buildVersion__"}'
             />
-            <html:button
-                id="zotero-prefpane-__addonRef__-checkConnection"
-                data-l10n-id="pref-check-connection"
-                style="margin-left: 10px"
-            >
-                检查连接
-            </html:button>
-        </hbox>
-        <!-- 设置翻译的目标语言和源语言 -->
-        <hbox align="center" flex="1">
-            <html:label
-                for="zotero-prefpane-__addonRef__-pref-sourceLang"
-                data-l10n-id="pref-sourceLang"
-            />
-            <html:input
-                id="zotero-prefpane-__addonRef__-sourceLang"
-                preference="extensions.zotero.__addonRef__.sourceLang"
-                type="text"
-                style="width: 120px; text-align: center"
-            />
-            <html:select
-                id="zotero-prefpane-__addonRef__-sourceLangSelect"
-                preference="extensions.zotero.__addonRef__.sourceLang"
-                style="width: 150px; text-align: center"
-            >
-            </html:select>
-        </hbox>
-        <hbox align="center" flex="1">
-            <html:label
-                for="zotero-prefpane-__addonRef__-targetLang"
-                data-l10n-id="pref-targetLang"
-            />
-            <html:input
-                id="zotero-prefpane-__addonRef__-targetLang"
-                preference="extensions.zotero.__addonRef__.targetLang"
-                type="text"
-                style="width: 120px; text-align: center"
-            />
-            <html:select
-                id="zotero-prefpane-__addonRef__-targetLangSelect"
-                preference="extensions.zotero.__addonRef__.targetLang"
-                style="width: 150px; text-align: center"
-            >
-            </html:select>
-        </hbox>
-        <!-- 设置翻译引擎 -->
-        <hbox align="center" flex="1">
-            <hbox align="center" flex="1">
-                <html:label
-                    for="zotero-prefpane-__addonRef__-engine"
-                    data-l10n-id="pref-engine"
-                />
-                <html:input
-                    id="zotero-prefpane-__addonRef__-engine"
-                    preference="extensions.zotero.__addonRef__.engine"
-                    type="text"
-                    flex="1"
-                    style="width: 105px; text-align: center"
-                />
-                <html:select
-                    id="zotero-prefpane-__addonRef__-engineSelect"
-                    preference="extensions.zotero.__addonRef__.engine"
-                    style="width: 130px; text-align: center"
-                >
-                    <html:option value="pdf2zh">pdf2zh</html:option>
-                    <html:option value="pdf2zh_next">pdf2zh_next</html:option>
-                </html:select>
-            </hbox>
-        </hbox>
-        <!-- 设置翻译服务 -->
-        <hbox
-            class="pdf1x-config"
-            style="display: none"
-            align="center"
-            flex="1"
-        >
-            <hbox align="center" flex="1">
-                <html:label
-                    for="zotero-prefpane-__addonRef__-service"
-                    data-l10n-id="pref-service"
-                />
-                <html:input
-                    id="zotero-prefpane-__addonRef__-service"
-                    preference="extensions.zotero.__addonRef__.service"
-                    type="text"
-                    flex="1"
-                    style="width: 105px; text-align: center"
-                />
-                <html:select
-                    id="zotero-prefpane-__addonRef__-serviceSelect"
-                    preference="extensions.zotero.__addonRef__.service"
-                    style="width: 130px; text-align: center"
-                >
-                    <html:option value="bing">Bing</html:option>
-                    <html:option value="google">Google</html:option>
+        </html:header>
 
-                    <html:option value="openailiked">OpenAILiked</html:option>
-                    <html:option value="deepseek">DeepSeek</html:option>
-                    <html:option value="openai">OpenAI</html:option>
-                    <html:option value="gemini">Gemini</html:option>
-                    <html:option value="silicon">SiliconFlow</html:option>
-                    <html:option value="zhipu">Zhipu</html:option>
-                    <html:option value="modelscope">ModelScope</html:option>
-                    <html:option value="qwen-mt">Qwen-MT</html:option>
-
-                    <html:option value="deepl">DeepL</html:option>
-                    <html:option value="tencent">Tencent</html:option>
-                    <html:option value="grok">Grok</html:option>
-
-                    <html:option value="dify">Dify</html:option>
-                    <html:option value="argos">Argos</html:option>
-                    <html:option value="ollama">Ollama</html:option>
-                    <html:option value="xinference">XInference</html:option>
-                    <html:option value="anythingllm">AnythingLLM</html:option>
-
-                    <html:option value="azure-openai">Azure OpenAI</html:option>
-                    <html:option value="azure">Azure</html:option>
-
-                    <html:option value="groq">Groq</html:option>
-                </html:select>
-            </hbox>
-        </hbox>
-
-        <hbox
-            class="pdf2x-config"
-            style="display: none"
-            align="center"
-            flex="1"
-        >
-            <hbox align="center" flex="1">
-                <html:label
-                    for="zotero-prefpane-__addonRef__-next_service"
-                    data-l10n-id="pref-service"
-                />
-                <html:input
-                    id="zotero-prefpane-__addonRef__-next_service"
-                    preference="extensions.zotero.__addonRef__.next_service"
-                    type="text"
-                    flex="1"
-                    style="width: 105px; text-align: center"
-                />
-                <html:select
-                    id="zotero-prefpane-__addonRef__-next_serviceSelect"
-                    preference="extensions.zotero.__addonRef__.next_service"
-                    style="width: 130px; text-align: center"
-                >
-                    <html:option value="siliconflowfree"
-                        >SiliconFlow Free</html:option
-                    >
-                    <html:option value="bing">Bing</html:option>
-                    <html:option value="google">Google</html:option>
-
-                    <html:option value="openailiked">OpenAILiked</html:option>
-                    <html:option value="AliyunDashScope"
-                        >AliyunDashScope</html:option
-                    >
-                    <html:option value="deepseek">DeepSeek</html:option>
-                    <html:option value="openai">OpenAI</html:option>
-                    <html:option value="gemini">Gemini</html:option>
-                    <html:option value="silicon">SiliconFlow</html:option>
-                    <html:option value="zhipu">Zhipu</html:option>
-                    <html:option value="modelscope">ModelScope</html:option>
-                    <html:option value="qwen-mt">Qwen-MT</html:option>
-
-                    <html:option value="deepl">DeepL</html:option>
-                    <html:option value="tencent">Tencent</html:option>
-                    <html:option value="grok">Grok</html:option>
-
-                    <html:option value="dify">Dify</html:option>
-                    <html:option value="argos">Argos</html:option>
-                    <html:option value="ollama">Ollama</html:option>
-                    <html:option value="xinference">XInference</html:option>
-                    <html:option value="anythingllm">AnythingLLM</html:option>
-
-                    <html:option value="azure-openai">Azure OpenAI</html:option>
-                    <html:option value="azure">Azure</html:option>
-
-                    <html:option value="groq">Groq</html:option>
-                    <html:option value="claudecode">claudecode</html:option>
-                </html:select>
-            </hbox>
-        </hbox>
-
-        <!-- 设置翻译线程数、跳过最后几页、重命名 -->
-        <vbox align="left" flex="1">
-            <hbox align="left" flex="1">
-                <hbox align="center" class="pdf1x-config" style="display: none">
+        <!-- ============================ Server ============================ -->
+        <html:section class="p2z-card">
+            <html:header class="p2z-card-head">
+                <html:h2 data-l10n-id="pref-sec-server" />
+                <html:p data-l10n-id="pref-sec-server-desc" />
+            </html:header>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
                     <html:label
-                        for="zotero-prefpane-__addonRef__-threadNum"
-                        data-l10n-id="pref-threadNum"
+                        class="p2z-row-title"
+                        for="__addonRef__-serverUrl"
+                        data-l10n-id="pref-serverip"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-serverip-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-serverUrl"
+                        class="p2z-input p2z-w-lg"
+                        type="text"
+                        spellcheck="false"
+                        placeholder="http://localhost:8890"
+                        data-pref="new_serverip"
+                    />
+                    <html:button
+                        id="__addonRef__-checkConnection"
+                        class="p2z-btn"
+                        type="button"
+                        data-l10n-id="pref-check-connection"
+                    />
+                </html:div>
+            </html:div>
+            <html:div
+                id="__addonRef__-server-status"
+                class="p2z-status"
+                data-state="idle"
+                role="status"
+            >
+                <html:span class="p2z-status-dot" />
+                <html:span class="p2z-status-text" />
+            </html:div>
+        </html:section>
+
+        <!-- ========================== Translation ========================== -->
+        <html:section class="p2z-card">
+            <html:header class="p2z-card-head">
+                <html:h2 data-l10n-id="pref-sec-translate" />
+            </html:header>
+
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:span
+                        class="p2z-row-title"
+                        data-l10n-id="pref-engine"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-engine-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:div
+                        id="__addonRef__-engine"
+                        class="p2z-segmented"
+                        role="radiogroup"
+                    >
+                        <html:button
+                            type="button"
+                            role="radio"
+                            data-engine-value="pdf2zh_next"
+                            data-l10n-id="pref-engine-next"
+                        />
+                        <html:button
+                            type="button"
+                            role="radio"
+                            data-engine-value="pdf2zh"
+                            data-l10n-id="pref-engine-legacy"
+                        />
+                    </html:div>
+                </html:div>
+            </html:div>
+
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-serviceSelect"
+                        data-l10n-id="pref-service"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-service-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:select
+                        id="__addonRef__-serviceSelect"
+                        class="p2z-select p2z-w-xl"
+                    />
+                </html:div>
+                <html:div
+                    id="__addonRef__-service-hint"
+                    class="p2z-note"
+                    data-tone="info"
+                />
+            </html:div>
+
+            <html:div class="p2z-row p2z-row-wide-ctl">
+                <html:div class="p2z-row-text">
+                    <html:span
+                        class="p2z-row-title"
+                        data-l10n-id="pref-languages"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-languages-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl p2z-lang">
+                    <html:div class="p2z-lang-field">
+                        <html:select
+                            id="__addonRef__-sourceLang"
+                            class="p2z-select"
+                            data-l10n-id="pref-sourceLang"
+                        />
+                        <html:input
+                            id="__addonRef__-sourceLang-custom"
+                            class="p2z-input"
+                            type="text"
+                            spellcheck="false"
+                            hidden="hidden"
+                            data-l10n-id="pref-lang-custom"
+                        />
+                    </html:div>
+                    <html:button
+                        id="__addonRef__-swapLang"
+                        class="p2z-btn p2z-btn-icon"
+                        type="button"
+                        data-l10n-id="pref-swapLang"
+                    >
+                        ⇄
+                    </html:button>
+                    <html:div class="p2z-lang-field">
+                        <html:select
+                            id="__addonRef__-targetLang"
+                            class="p2z-select"
+                            data-l10n-id="pref-targetLang"
+                        />
+                        <html:input
+                            id="__addonRef__-targetLang-custom"
+                            class="p2z-input"
+                            type="text"
+                            spellcheck="false"
+                            hidden="hidden"
+                            data-l10n-id="pref-lang-custom"
+                        />
+                    </html:div>
+                </html:div>
+            </html:div>
+
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-skipLastPages"
+                        data-l10n-id="pref-skipLastPages"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-skipLastPages-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-skipLastPages"
+                        class="p2z-input p2z-w-num"
+                        type="number"
+                        min="0"
+                        max="999"
+                        data-pref="skipLastPages"
+                    />
+                </html:div>
+            </html:div>
+        </html:section>
+
+        <!-- ========================== API profiles ========================== -->
+        <html:section class="p2z-card">
+            <html:header class="p2z-card-head p2z-card-head-action">
+                <html:div>
+                    <html:h2 data-l10n-id="pref-sec-profiles" />
+                    <html:p data-l10n-id="pref-sec-profiles-desc" />
+                </html:div>
+                <html:button
+                    id="__addonRef__-llmapi-add"
+                    class="p2z-btn p2z-btn-primary"
+                    type="button"
+                    data-l10n-id="pref-llmapi-add"
+                />
+            </html:header>
+            <html:div id="__addonRef__-profiles" class="p2z-profiles" />
+        </html:section>
+
+        <!-- ============================ Output ============================ -->
+        <html:section class="p2z-card">
+            <html:header class="p2z-card-head">
+                <html:h2 data-l10n-id="pref-gen" />
+                <html:p data-l10n-id="pref-gen-desc" />
+            </html:header>
+
+            <html:div class="p2z-table" role="table">
+                <html:div class="p2z-table-head" role="row">
+                    <html:span
+                        role="columnheader"
+                        data-l10n-id="pref-col-file"
+                    />
+                    <html:span
+                        role="columnheader"
+                        data-l10n-id="pref-col-generate"
+                    />
+                    <html:span role="columnheader" data-l10n-id="pref-open" />
+                </html:div>
+                <html:div class="p2z-table-row" role="row" data-output="mono">
+                    <html:label class="p2z-row-text" for="__addonRef__-mono">
+                        <html:span
+                            class="p2z-row-title"
+                            data-l10n-id="pref-mono"
+                        />
+                        <html:span
+                            class="p2z-row-desc"
+                            data-l10n-id="pref-mono-desc"
+                        />
+                    </html:label>
+                    <html:input
+                        id="__addonRef__-mono"
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="mono"
                     />
                     <html:input
-                        id="zotero-prefpane-__addonRef__-threadNum"
-                        preference="extensions.zotero.__addonRef__.threadNum"
-                        type="number"
-                        style="width: 50px; text-align: center"
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="mono-open"
                     />
-                </hbox>
-                <hbox class="pdf2x-config" style="display: none">
-                    <hbox align="center">
-                        <html:label
-                            for="zotero-prefpane-__addonRef__-qps"
-                            data-l10n-id="pref-qps"
+                </html:div>
+                <html:div class="p2z-table-row" role="row" data-output="dual">
+                    <html:label class="p2z-row-text" for="__addonRef__-dual">
+                        <html:span
+                            class="p2z-row-title"
+                            data-l10n-id="pref-dual"
                         />
-                        <html:input
-                            id="zotero-prefpane-__addonRef__-qps"
-                            preference="extensions.zotero.__addonRef__.qps"
-                            type="number"
-                            style="width: 50px; text-align: center"
+                        <html:span
+                            class="p2z-row-desc"
+                            data-l10n-id="pref-dual-desc"
                         />
-                    </hbox>
-                    <hbox align="center">
-                        <html:label
-                            for="zotero-prefpane-__addonRef__-poolSize"
-                            data-l10n-id="pref-poolSize"
+                    </html:label>
+                    <html:input
+                        id="__addonRef__-dual"
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="dual"
+                    />
+                    <html:input
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="dual-open"
+                    />
+                </html:div>
+                <html:div
+                    class="p2z-table-row"
+                    role="row"
+                    data-output="mono-cut"
+                >
+                    <html:label
+                        class="p2z-row-text"
+                        for="__addonRef__-mono-cut"
+                    >
+                        <html:span
+                            class="p2z-row-title"
+                            data-l10n-id="pref-mono-cut"
                         />
-                        <html:input
-                            id="zotero-prefpane-__addonRef__-poolSize"
-                            preference="extensions.zotero.__addonRef__.poolSize"
-                            type="number"
-                            style="width: 50px; text-align: center"
+                        <html:span
+                            class="p2z-row-desc"
+                            data-l10n-id="pref-mono-cut-desc"
                         />
-                    </hbox>
-                </hbox>
-            </hbox>
-            <hbox align="center" flex="1">
-                <html:label
-                    for="zotero-prefpane-__addonRef__-skipLastPages"
-                    data-l10n-id="pref-skipLastPages"
-                />
-                <html:input
-                    id="zotero-prefpane-__addonRef__-skipLastPages"
-                    preference="extensions.zotero.__addonRef__.skipLastPages"
-                    type="number"
-                    style="width: 50px; text-align: center"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-rename"
-                    preference="extensions.zotero.__addonRef__.rename"
-                />
-                <html:label
-                    for="zotero-prefpane-__addonRef__-rename"
-                    data-l10n-id="pref-rename"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-showProgress"
-                    preference="extensions.zotero.__addonRef__.showProgress"
-                />
-                <html:label
-                    for="zotero-prefpane-__addonRef__-showProgress"
-                    data-l10n-id="pref-showProgress"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-transFirst"
-                    preference="extensions.zotero.__addonRef__.transFirst"
-                />
-                <html:label
-                    data-l10n-id="pref-transFirst"
-                    for="zotero-prefpane-__addonRef__-transFirst"
-                />
-            </hbox>
-        </vbox>
-    </vbox>
-
-    <!-- pdf2zh 1.x专用配置 -->
-    <hbox class="pdf1x-config" style="display: none" align="center" flex="1">
-        <html:h4 data-l10n-id="pref-pdf1x-config-title"></html:h4>
-        <hbox align="center" flex="1">
-            <checkbox
-                id="zotero-prefpane-__addonRef__-skipSubsetFonts"
-                preference="extensions.zotero.__addonRef__.skipSubsetFonts"
-            />
-            <html:label
-                data-l10n-id="pref-skipSubsetFonts"
-                for="zotero-prefpane-__addonRef__-skipSubsetFonts"
-            />
-        </hbox>
-        <hbox align="center" flex="1">
-            <checkbox
-                id="zotero-prefpane-__addonRef__-babeldoc"
-                preference="extensions.zotero.__addonRef__.babeldoc"
-            />
-            <html:label
-                data-l10n-id="pref-babeldoc"
-                for="zotero-prefpane-__addonRef__-babeldoc"
-            />
-        </hbox>
-        <hbox align="center" flex="1">
-            <html:label
-                data-l10n-id="pref-fontFile"
-                for="zotero-prefpane-__addonRef__-fontFile"
-            />
-            <html:input
-                type="file"
-                id="zotero-prefpane-__addonRef__-fontFile"
-                preference="extensions.zotero.__addonRef__.fontFile"
-                accept=".ttf,.otf,.woff,.woff2"
-            />
-            <button
-                id="zotero-prefpane-__addonRef__-fontFile-clear"
-                label="Clear"
-                data-l10n-id="pref-clear"
-            />
-        </hbox>
-    </hbox>
-
-    <!-- pdf2zh 2.x专用配置 -->
-    <hbox class="pdf2x-config" style="display: none" align="center" flex="1">
-        <html:h4 data-l10n-id="pref-pdf2x-config-title"></html:h4>
-        <hbox align="center" flex="1">
-            <html:label
-                data-l10n-id="pref-fontFamily"
-                for="zotero-prefpane-__addonRef__-fontFamily"
-            />
-            <html:select
-                id="zotero-prefpane-__addonRef__-fontFamily"
-                preference="extensions.zotero.__addonRef__.fontFamily"
-            >
-                <html:option value="auto">auto</html:option>
-                <html:option value="serif">serif</html:option>
-                <html:option value="sans-serif">sans-serif</html:option>
-                <html:option value="script">script</html:option>
-            </html:select>
-        </hbox>
-        <hbox align="center" flex="1">
-            <html:label
-                data-l10n-id="pref-dualMode"
-                for="zotero-prefpane-__addonRef__-dualMode"
-            />
-            <html:select
-                id="zotero-prefpane-__addonRef__-dualMode"
-                preference="extensions.zotero.__addonRef__.dualMode"
-            >
-                <html:option
-                    value="LR"
-                    data-l10n-id="pref-dualMode-lr"
-                ></html:option>
-                <html:option
-                    value="TB"
-                    data-l10n-id="pref-dualMode-tb"
-                ></html:option>
-            </html:select>
-        </hbox>
-        <hbox align="center" flex="1">
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-ocr"
-                    preference="extensions.zotero.__addonRef__.ocr"
-                />
-                <html:label
-                    data-l10n-id="pref-ocr"
-                    for="zotero-prefpane-__addonRef__-ocr"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-autoOcr"
-                    preference="extensions.zotero.__addonRef__.autoOcr"
-                />
-                <html:label
-                    data-l10n-id="pref-autoOcr"
-                    for="zotero-prefpane-__addonRef__-autoOcr"
-                />
-            </hbox>
-        </hbox>
-
-        <hbox align="center" flex="1">
-            <checkbox
-                id="zotero-prefpane-__addonRef__-noWatermark"
-                preference="extensions.zotero.__addonRef__.noWatermark"
-            />
-            <html:label
-                data-l10n-id="pref-noWatermark"
-                for="zotero-prefpane-__addonRef__-noWatermark"
-            />
-        </hbox>
-        <hbox align="left" flex="1">
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-saveGlossary"
-                    preference="extensions.zotero.__addonRef__.saveGlossary"
-                />
-                <html:label
-                    data-l10n-id="pref-saveGlossary"
-                    for="zotero-prefpane-__addonRef__-saveGlossary"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-disableGlossary"
-                    preference="extensions.zotero.__addonRef__.disableGlossary"
-                />
-                <html:label
-                    data-l10n-id="pref-disableGlossary"
-                    for="zotero-prefpane-__addonRef__-disableGlossary"
-                />
-            </hbox>
-        </hbox>
-        <hbox align="left" flex="1">
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-noDual"
-                    preference="extensions.zotero.__addonRef__.noDual"
-                />
-                <html:label
-                    data-l10n-id="pref-noDual"
-                    for="zotero-prefpane-__addonRef__-noDual"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-noMono"
-                    preference="extensions.zotero.__addonRef__.noMono"
-                />
-                <html:label
-                    data-l10n-id="pref-noMono"
-                    for="zotero-prefpane-__addonRef__-noMono"
-                />
-            </hbox>
-        </hbox>
-        <hbox align="center" flex="1">
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-skipClean"
-                    preference="extensions.zotero.__addonRef__.skipClean"
-                />
-                <html:label
-                    data-l10n-id="pref-skipClean"
-                    for="zotero-prefpane-__addonRef__-skipClean"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-enhanceCompatibility"
-                    preference="extensions.zotero.__addonRef__.enhanceCompatibility"
-                />
-                <html:label
-                    data-l10n-id="pref-enhanceCompatibility"
-                    for="zotero-prefpane-__addonRef__-enhanceCompatibility"
-                />
-            </hbox>
-        </hbox>
-        <hbox align="center" flex="1">
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-disableRichTextTranslate"
-                    preference="extensions.zotero.__addonRef__.disableRichTextTranslate"
-                />
-                <html:label
-                    data-l10n-id="pref-disableRichTextTranslate"
-                    for="zotero-prefpane-__addonRef__-disableRichTextTranslate"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-translateTableText"
-                    preference="extensions.zotero.__addonRef__.translateTableText"
-                />
-                <html:label
-                    data-l10n-id="pref-translateTableText"
-                    for="zotero-prefpane-__addonRef__-translateTableText"
-                />
-            </hbox>
-        </hbox>
-        <hbox align="center" flex="1">
-            <checkbox
-                id="zotero-prefpane-__addonRef__-onlyIncludeTranslatedPage"
-                preference="extensions.zotero.__addonRef__.onlyIncludeTranslatedPage"
-            />
-            <html:label
-                data-l10n-id="pref-onlyIncludeTranslatedPage"
-                for="zotero-prefpane-__addonRef__-onlyIncludeTranslatedPage"
-            />
-        </hbox>
-    </hbox>
-
-    <!--pdf2zh默认生成和打开的文件-->
-    <vbox flex="1">
-        <html:h3 data-l10n-id="pref-gen"></html:h3>
-        <hbox align="center" flex="1">
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-mono"
-                    preference="extensions.zotero.__addonRef__.mono"
-                />
-                <html:label
-                    data-l10n-id="pref-mono"
-                    for="zotero-prefpane-__addonRef__-mono"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-mono-open"
-                    preference="extensions.zotero.__addonRef__.mono-open"
-                />
-                <html:label
-                    data-l10n-id="pref-open"
-                    for="zotero-prefpane-__addonRef__-mono-open"
-                />
-            </hbox>
-        </hbox>
-        <hbox align="center" flex="1">
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-dual"
-                    preference="extensions.zotero.__addonRef__.dual"
-                />
-                <html:label
-                    data-l10n-id="pref-dual"
-                    for="zotero-prefpane-__addonRef__-dual"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-dual-open"
-                    preference="extensions.zotero.__addonRef__.dual-open"
-                />
-                <html:label
-                    data-l10n-id="pref-open"
-                    for="zotero-prefpane-__addonRef__-dual-open"
-                />
-            </hbox>
-        </hbox>
-        <hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-mono-cut"
-                    preference="extensions.zotero.__addonRef__.mono-cut"
-                />
-                <html:label
-                    data-l10n-id="pref-mono-cut"
-                    for="zotero-prefpane-__addonRef__-mono-cut"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-mono-cut-open"
-                    preference="extensions.zotero.__addonRef__.mono-cut-open"
-                />
-                <html:label
-                    data-l10n-id="pref-open"
-                    for="zotero-prefpane-__addonRef__-mono-cut-open"
-                />
-            </hbox>
-        </hbox>
-        <hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-dual-cut"
-                    preference="extensions.zotero.__addonRef__.dual-cut"
-                />
-                <html:label
-                    data-l10n-id="pref-dual-cut"
-                    for="zotero-prefpane-__addonRef__-dual-cut"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-dual-cut-open"
-                    preference="extensions.zotero.__addonRef__.dual-cut-open"
-                />
-                <html:label
-                    data-l10n-id="pref-open"
-                    for="zotero-prefpane-__addonRef__-dual-cut-open"
-                />
-            </hbox>
-        </hbox>
-        <hbox align="center" flex="1">
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-crop-compare"
-                    preference="extensions.zotero.__addonRef__.crop-compare"
-                />
-                <html:label
-                    data-l10n-id="pref-crop-compare"
-                    for="zotero-prefpane-__addonRef__-crop-compare"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-crop-compare-open"
-                    preference="extensions.zotero.__addonRef__.crop-compare-open"
-                />
-                <html:label
-                    data-l10n-id="pref-open"
-                    for="zotero-prefpane-__addonRef__-crop-compare-open"
-                />
-            </hbox>
-        </hbox>
-        <hbox align="center" flex="1">
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-compare"
-                    preference="extensions.zotero.__addonRef__.compare"
-                />
-                <html:label
-                    data-l10n-id="pref-compare"
-                    for="zotero-prefpane-__addonRef__-compare"
-                />
-            </hbox>
-            <hbox align="center" flex="1">
-                <checkbox
-                    id="zotero-prefpane-__addonRef__-compare-open"
-                    preference="extensions.zotero.__addonRef__.compare-open"
-                />
-                <html:label
-                    data-l10n-id="pref-open"
-                    for="zotero-prefpane-__addonRef__-compare-open"
-                />
-            </hbox>
-        </hbox>
-    </vbox>
-
-    <groupbox>
-        <html:h3>LLM API 配置管理</html:h3>
-        <p>
-            请在此处配置您自行申请的 LLM API 信息,
-            以便插件可以调用相应的翻译服务。
-        </p>
-        <hbox flex="1" align="center" class="virtualized-table-container">
+                    </html:label>
+                    <html:input
+                        id="__addonRef__-mono-cut"
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="mono-cut"
+                    />
+                    <html:input
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="mono-cut-open"
+                    />
+                </html:div>
+                <html:div
+                    class="p2z-table-row"
+                    role="row"
+                    data-output="dual-cut"
+                >
+                    <html:label
+                        class="p2z-row-text"
+                        for="__addonRef__-dual-cut"
+                    >
+                        <html:span
+                            class="p2z-row-title"
+                            data-l10n-id="pref-dual-cut"
+                        />
+                        <html:span
+                            class="p2z-row-desc"
+                            data-l10n-id="pref-dual-cut-desc"
+                        />
+                    </html:label>
+                    <html:input
+                        id="__addonRef__-dual-cut"
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="dual-cut"
+                    />
+                    <html:input
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="dual-cut-open"
+                    />
+                </html:div>
+                <html:div
+                    class="p2z-table-row"
+                    role="row"
+                    data-output="crop-compare"
+                >
+                    <html:label
+                        class="p2z-row-text"
+                        for="__addonRef__-crop-compare"
+                    >
+                        <html:span
+                            class="p2z-row-title"
+                            data-l10n-id="pref-crop-compare"
+                        />
+                        <html:span
+                            class="p2z-row-desc"
+                            data-l10n-id="pref-crop-compare-desc"
+                        />
+                    </html:label>
+                    <html:input
+                        id="__addonRef__-crop-compare"
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="crop-compare"
+                    />
+                    <html:input
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="crop-compare-open"
+                    />
+                </html:div>
+                <html:div
+                    class="p2z-table-row"
+                    role="row"
+                    data-output="compare"
+                >
+                    <html:label class="p2z-row-text" for="__addonRef__-compare">
+                        <html:span
+                            class="p2z-row-title"
+                            data-l10n-id="pref-compare"
+                        />
+                        <html:span
+                            class="p2z-row-desc"
+                            data-l10n-id="pref-compare-desc"
+                        />
+                    </html:label>
+                    <html:input
+                        id="__addonRef__-compare"
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="compare"
+                    />
+                    <html:input
+                        class="p2z-check"
+                        type="checkbox"
+                        data-pref="compare-open"
+                    />
+                </html:div>
+            </html:div>
             <html:div
-                id="zotero-prefpane-__addonRef__-llmapi-table-container"
+                id="__addonRef__-output-warning"
+                class="p2z-note"
+                data-tone="warn"
+                hidden="hidden"
+                data-l10n-id="pref-output-none"
             />
-        </hbox>
-        <hbox align="center" flex="1">
-            <button
-                id="zotero-prefpane-__addonRef__-llmapi-add"
-                class="action-button"
-                data-l10n-id="pref-llmapi-add"
-            />
-            <button
-                id="zotero-prefpane-__addonRef__-llmapi-remove"
-                class="action-button llmapi-selection"
-                data-l10n-id="pref-llmapi-remove"
-            />
-            <button
-                id="zotero-prefpane-__addonRef__-llmapi-edit"
-                class="action-button llmapi-selection-single"
-                data-l10n-id="pref-llmapi-edit"
-            />
-            <button
-                id="zotero-prefpane-__addonRef__-llmapi-activate"
-                class="action-button llmapi-selection-single"
-                data-l10n-id="pref-llmapi-activate"
-            />
-            <button
-                id="zotero-prefpane-__addonRef__-llmapi-totop"
-                class="action-button llmapi-selection-single"
-                data-l10n-id="pref-llmapi-totop"
-            />
-        </hbox>
-    </groupbox>
 
-    <vbox>
-        <html:h2>注意事项</html:h2>
-        <p align="center">
-            🌷 关于本插件的所有信息, 以本插件的Github项目主页为准:
-            https://github.com/guaguastandup/zotero-pdf2zh
-        </p>
-        <p align="center">
-            🌷 如果您无法访问Github, 请访问本项目Gitee镜像主页:
-            https://gitee.com/guaguastandup/zotero-pdf2zh
-        </p>
-        <p align="center">
-            🌷 本插件需要使用命令行/终端/docker/执行Python脚本,
-            才可以使用翻译功能, 请在翻译过程中保持终端/命令行开启。
-        </p>
-        <p align="center">🌷 项目文档: https://zotero-pdf2zh.github.io/</p>
-        <p align="center">
-            🌷 [2026年8月23日v4.1.7更新日志] 远程/Docker 翻译完成后优先 HTTP
-            挂附件|新旧插件协议兼容|进度条显示翻译百分比|加固附件文件名|补齐额外字段白名单，可从下拉添加
-            `*_enable_json_mode`（默认关闭）|请同时更新插件和 Server
-        </p>
-        <p align="center">
-            🌷 [2026年8月22日v4.1.6更新日志] 翻译改为后台任务，避免 Windows
-            长连接 Network Error|进度查询不再打断终端进度条
-        </p>
-        <p align="center">
-            🌷 [2026年8月21日v4.1.3更新日志] 翻译完成后优先从本机挂附件，减少
-            Network Error 导致条目下没有
-            PDF|终端进度条按真实窗口宽度绘制，避免折行重复打印
-        </p>
-        <p align="center">
-            🌷 [2026年8月20日v4.1.1更新日志] 修复 Windows Conda 将 python.exe
-            找错路径导致环境不可用|staging 更新失败时继续使用健康旧环境|修复
-            Windows 非 UTF-8 控制台因日志 emoji 崩溃
-        </p>
-        <p align="center">
-            🌷 [2026年8月19日v4.1.0更新日志] DeepSeek V4 Thinking 控制|翻译环境
-            staging 安全安装/更新|完善 Dual/Crop 状态处理
-        </p>
-        <p align="center">
-            🌷 本插件为免费开源插件, 请勿在其他渠道购买本插件, 请及时申请退款。
-            QQ交流群请到 GitHub / Gitee
-            仓库主页查看最新群号和入群口令，进群请先查看群公告。
-            请勿使用非官方搬运版中的口令。
-        </p>
-    </vbox>
-</groupbox>
+            <html:div class="p2z-row" data-for-engine="pdf2zh_next">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-dualMode"
+                        data-l10n-id="pref-dualMode"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-dualMode-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:select
+                        id="__addonRef__-dualMode"
+                        class="p2z-select"
+                        data-pref="dualMode"
+                    >
+                        <html:option
+                            value="LR"
+                            data-l10n-id="pref-dualMode-lr"
+                        />
+                        <html:option
+                            value="TB"
+                            data-l10n-id="pref-dualMode-tb"
+                        />
+                    </html:select>
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row" data-for-engine="pdf2zh_next">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-transFirst"
+                        data-l10n-id="pref-transFirst"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-transFirst-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-transFirst"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="transFirst"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-rename"
+                        data-l10n-id="pref-rename"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-rename-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-rename"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="rename"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-showProgress"
+                        data-l10n-id="pref-showProgress"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-showProgress-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-showProgress"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="showProgress"
+                    />
+                </html:div>
+            </html:div>
+        </html:section>
 
-<vbox>
-    <html:h2></html:h2>
-    <html:label
-        data-l10n-id="pref-help"
-        data-l10n-args='{"time": "__buildTime__","name": "__addonName__","version":"__buildVersion__"}'
-    ></html:label>
+        <!-- ===================== Speed and terminology ===================== -->
+        <html:section class="p2z-card">
+            <html:header class="p2z-card-head">
+                <html:h2 data-l10n-id="pref-sec-speed" />
+                <html:p data-l10n-id="pref-sec-speed-desc" />
+            </html:header>
+
+            <html:div class="p2z-row" data-for-engine="pdf2zh_next">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-qps"
+                        data-l10n-id="pref-qps"
+                    />
+                    <html:p class="p2z-row-desc" data-l10n-id="pref-qps-desc" />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-qps"
+                        class="p2z-input p2z-w-num"
+                        type="number"
+                        min="1"
+                        max="1000"
+                        data-pref="qps"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row" data-for-engine="pdf2zh_next">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-poolSize"
+                        data-l10n-id="pref-poolSize"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-poolSize-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-poolSize"
+                        class="p2z-input p2z-w-num"
+                        type="number"
+                        min="0"
+                        max="1000"
+                        data-pref="poolSize"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row" data-for-engine="pdf2zh">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-threadNum"
+                        data-l10n-id="pref-threadNum"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-threadNum-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-threadNum"
+                        class="p2z-input p2z-w-num"
+                        type="number"
+                        min="1"
+                        max="256"
+                        data-pref="threadNum"
+                    />
+                </html:div>
+            </html:div>
+
+            <html:div class="p2z-subhead" data-for-engine="pdf2zh_next">
+                <html:h3 data-l10n-id="pref-sec-glossary" />
+            </html:div>
+            <html:div class="p2z-row" data-for-engine="pdf2zh_next">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-autoGlossary"
+                        data-l10n-id="pref-autoGlossary"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-autoGlossary-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-autoGlossary"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="disableGlossary"
+                        data-invert="true"
+                    />
+                </html:div>
+            </html:div>
+            <html:div
+                class="p2z-row p2z-row-nested"
+                data-for-engine="pdf2zh_next"
+                data-needs-glossary="true"
+            >
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-termPoolSize"
+                        data-l10n-id="pref-termPoolSize"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-termPoolSize-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-termPoolSize"
+                        class="p2z-input p2z-w-num"
+                        type="number"
+                        min="0"
+                        max="1000"
+                        data-pref="termPoolSize"
+                    />
+                </html:div>
+            </html:div>
+            <html:div
+                class="p2z-row p2z-row-nested"
+                data-for-engine="pdf2zh_next"
+                data-needs-glossary="true"
+            >
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-saveGlossary"
+                        data-l10n-id="pref-saveGlossary"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-saveGlossary-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-saveGlossary"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="saveGlossary"
+                    />
+                </html:div>
+            </html:div>
+        </html:section>
+
+        <!-- ====================== Advanced: pdf2zh_next ====================== -->
+        <html:details class="p2z-card p2z-fold" data-for-engine="pdf2zh_next">
+            <html:summary class="p2z-card-head">
+                <html:h2 data-l10n-id="pref-pdf2x-config-title" />
+                <html:p data-l10n-id="pref-pdf2x-config-desc" />
+            </html:summary>
+
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-fontFamily"
+                        data-l10n-id="pref-fontFamily"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-fontFamily-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:select
+                        id="__addonRef__-fontFamily"
+                        class="p2z-select"
+                        data-pref="fontFamily"
+                    >
+                        <html:option
+                            value="auto"
+                            data-l10n-id="pref-fontFamily-auto"
+                        />
+                        <html:option
+                            value="serif"
+                            data-l10n-id="pref-fontFamily-serif"
+                        />
+                        <html:option
+                            value="sans-serif"
+                            data-l10n-id="pref-fontFamily-sans"
+                        />
+                        <html:option
+                            value="script"
+                            data-l10n-id="pref-fontFamily-script"
+                        />
+                    </html:select>
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-noWatermark"
+                        data-l10n-id="pref-noWatermark"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-noWatermark-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-noWatermark"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="noWatermark"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-autoOcr"
+                        data-l10n-id="pref-autoOcr"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-autoOcr-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-autoOcr"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="autoOcr"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-ocr"
+                        data-l10n-id="pref-ocr"
+                    />
+                    <html:p class="p2z-row-desc" data-l10n-id="pref-ocr-desc" />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-ocr"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="ocr"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-translateTableText"
+                        data-l10n-id="pref-translateTableText"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-translateTableText-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-translateTableText"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="translateTableText"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-onlyIncludeTranslatedPage"
+                        data-l10n-id="pref-onlyIncludeTranslatedPage"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-onlyIncludeTranslatedPage-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-onlyIncludeTranslatedPage"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="onlyIncludeTranslatedPage"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-ignoreCache"
+                        data-l10n-id="pref-ignoreCache"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-ignoreCache-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-ignoreCache"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="ignoreCache"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row p2z-row-stack">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-customSystemPrompt"
+                        data-l10n-id="pref-customSystemPrompt"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-customSystemPrompt-desc"
+                    />
+                </html:div>
+                <html:textarea
+                    id="__addonRef__-customSystemPrompt"
+                    class="p2z-input p2z-textarea"
+                    rows="2"
+                    spellcheck="false"
+                    data-pref="customSystemPrompt"
+                />
+            </html:div>
+
+            <html:div class="p2z-subhead">
+                <html:h3 data-l10n-id="pref-sec-compat" />
+                <html:p data-l10n-id="pref-sec-compat-desc" />
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-enhanceCompatibility"
+                        data-l10n-id="pref-enhanceCompatibility"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-enhanceCompatibility-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-enhanceCompatibility"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="enhanceCompatibility"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-skipClean"
+                        data-l10n-id="pref-skipClean"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-skipClean-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-skipClean"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="skipClean"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-disableRichTextTranslate"
+                        data-l10n-id="pref-disableRichTextTranslate"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-disableRichTextTranslate-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-disableRichTextTranslate"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="disableRichTextTranslate"
+                    />
+                </html:div>
+            </html:div>
+        </html:details>
+
+        <!-- ======================= Advanced: pdf2zh 1.x ======================= -->
+        <html:details class="p2z-card p2z-fold" data-for-engine="pdf2zh">
+            <html:summary class="p2z-card-head">
+                <html:h2 data-l10n-id="pref-pdf1x-config-title" />
+                <html:p data-l10n-id="pref-pdf1x-config-desc" />
+            </html:summary>
+
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-skipSubsetFonts"
+                        data-l10n-id="pref-skipSubsetFonts"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-skipSubsetFonts-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-skipSubsetFonts"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="skipSubsetFonts"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-babeldoc"
+                        data-l10n-id="pref-babeldoc"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-babeldoc-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl">
+                    <html:input
+                        id="__addonRef__-babeldoc"
+                        class="p2z-switch"
+                        type="checkbox"
+                        data-pref="babeldoc"
+                    />
+                </html:div>
+            </html:div>
+            <html:div class="p2z-row p2z-row-stack">
+                <html:div class="p2z-row-text">
+                    <html:label
+                        class="p2z-row-title"
+                        for="__addonRef__-fontFile"
+                        data-l10n-id="pref-fontFile"
+                    />
+                    <html:p
+                        class="p2z-row-desc"
+                        data-l10n-id="pref-fontFile-desc"
+                    />
+                </html:div>
+                <html:div class="p2z-row-ctl p2z-row-ctl-wide">
+                    <html:input
+                        id="__addonRef__-fontFile"
+                        class="p2z-input"
+                        type="text"
+                        spellcheck="false"
+                        data-pref="fontFile"
+                    />
+                    <html:button
+                        id="__addonRef__-fontFile-browse"
+                        class="p2z-btn"
+                        type="button"
+                        data-l10n-id="pref-browse"
+                    />
+                    <html:button
+                        id="__addonRef__-fontFile-clear"
+                        class="p2z-btn"
+                        type="button"
+                        data-l10n-id="pref-clear"
+                    />
+                </html:div>
+            </html:div>
+        </html:details>
+
+        <!-- ============================= About ============================= -->
+        <html:footer class="p2z-about">
+            <html:p data-l10n-id="pref-about-note" />
+            <html:div class="p2z-links">
+                <html:button
+                    class="p2z-link"
+                    type="button"
+                    data-url="https://zotero-pdf2zh.github.io/"
+                    data-l10n-id="pref-link-docs"
+                />
+                <html:button
+                    class="p2z-link"
+                    type="button"
+                    data-url="__homepage__"
+                    data-l10n-id="pref-link-github"
+                />
+                <html:button
+                    class="p2z-link"
+                    type="button"
+                    data-url="https://gitee.com/guaguastandup/zotero-pdf2zh"
+                    data-l10n-id="pref-link-gitee"
+                />
+                <html:button
+                    id="__addonRef__-open-monitor"
+                    class="p2z-link"
+                    type="button"
+                    data-l10n-id="pref-link-monitor"
+                />
+            </html:div>
+        </html:footer>
+    </html:div>
 </vbox>

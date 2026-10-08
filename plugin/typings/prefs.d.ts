@@ -10,18 +10,14 @@ declare namespace _ZoteroTypes {
       "new_serverip": string;
       "sourceLang": string;
       "targetLang": string;
-      "sourceLangSelect": string;
-      "targetLangSelect": string;
       "engine": string;
-      "engineSelect": string;
       "service": string;
-      "serviceSelect": string;
       "next_service": string;
-      "next_serviceSelect": string;
       "skipLastPages": number;
       "threadNum": number;
       "qps": number;
       "poolSize": number;
+      "termPoolSize": number;
       "rename": boolean;
       "showProgress": boolean;
       "skipSubsetFonts": boolean;
@@ -35,13 +31,13 @@ declare namespace _ZoteroTypes {
       "noWatermark": boolean;
       "saveGlossary": boolean;
       "disableGlossary": boolean;
-      "noDual": boolean;
-      "noMono": boolean;
       "skipClean": boolean;
       "disableRichTextTranslate": boolean;
       "enhanceCompatibility": boolean;
       "translateTableText": boolean;
       "onlyIncludeTranslatedPage": boolean;
+      "ignoreCache": boolean;
+      "customSystemPrompt": string;
       "mono": boolean;
       "dual": boolean;
       "mono-cut": boolean;
@@ -54,8 +50,7 @@ declare namespace _ZoteroTypes {
       "dual-cut-open": boolean;
       "crop-compare-open": boolean;
       "compare-open": boolean;
-      "dialog-service": string;
-      "dialog-serviceSelect": string;
+      "llmApis": string;
     };
   }
 }
